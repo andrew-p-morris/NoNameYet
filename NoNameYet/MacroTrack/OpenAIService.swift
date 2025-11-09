@@ -27,7 +27,7 @@ class OpenAIService {
     /// Returns ParsedResult compatible with existing CoachNotesParser structure
     func parseCoachInput(_ input: String) async throws -> ParsedResult {
         let availableFoods = FoodDatabase.foods
-        let foodList = availableFoods.map { "- \($0.name)" }.joined(separator: "\n")
+        let foodList = availableFoods.values.map { "- \($0.name)" }.joined(separator: "\n")
         
         let systemPrompt = """
         You are a fitness tracking assistant. Parse user input about food, water, and workouts.
