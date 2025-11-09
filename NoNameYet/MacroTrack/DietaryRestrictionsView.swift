@@ -51,11 +51,25 @@ struct DietaryRestrictionsView: View {
             .padding(.top, 60)
         }
         .onAppear(perform: configureFromData)
+        .navigationBarBackButtonHidden(true)
         .navigationDestination(isPresented: $navigateToPlan) {
             ActivityLevelView()
         }
     }
 
+    private var canProceed: Bool {
+        guard selectedOption != nil, selectedDietType != nil else {
+            return false
+        }
+        
+        // If YES selected, must be confirmed first
+        if selectedOption == .restrictions && !restrictionsConfirmed {
+            return false
+        }
+        
+        return true
+    }
+    
     private var header: some View {
         Text("DIETARY RESTRICTIONS")
             .font(SimplePalette.retroFont(size: 26, weight: .bold))
@@ -219,8 +233,8 @@ struct DietaryRestrictionsView: View {
                     )
             }
             .buttonStyle(.plain)
-            .opacity(selectedOption == nil || selectedDietType == nil ? 0.4 : 1)
-            .disabled(selectedOption == nil || selectedDietType == nil)
+            .opacity(canProceed ? 1 : 0.4)
+            .disabled(!canProceed)
         }
     }
 
@@ -292,11 +306,12 @@ struct DietaryRestrictionsView: View {
         dietaryInput = onboardingData.dietaryInputRaw
         selectedDietType = onboardingData.dietType
 
+        // Only pre-select if user has explicitly made a choice before
         if !onboardingData.dietaryRestrictions.isEmpty || !dietaryInput.isEmpty {
             selectedOption = .restrictions
-        } else if onboardingData.dietType != nil {
-            selectedOption = Option.none
+            restrictionsConfirmed = true // If they already typed, consider it confirmed
         }
+        // Don't auto-select .none - let user choose fresh
     }
 }
 

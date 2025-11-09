@@ -576,6 +576,30 @@ struct HealthPlanView: View {
         )
         
         onboardingData.updateCompletion(for: today, completion: completion)
+        
+        // Track workout completions for achievements
+        if cardioComplete || strengthComplete {
+            let wasCardioIncomplete = !(existing?.cardioComplete ?? false)
+            let wasStrengthIncomplete = !(existing?.strengthComplete ?? false)
+            
+            // If a workout was just completed, track it
+            if (cardioComplete && wasCardioIncomplete) || (strengthComplete && wasStrengthIncomplete) {
+                onboardingData.totalWorkoutsCompleted += 1
+                onboardingData.updateAppStreak()
+                let newAchievements = onboardingData.checkAchievements()
+                
+                // Show achievement notification if any unlocked
+                if !newAchievements.isEmpty {
+                    newlyUnlockedAchievements = newAchievements
+                    showAchievementNotification = true
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                        showAchievementNotification = false
+                        newlyUnlockedAchievements = []
+                    }
+                }
+            }
+        }
     }
 
     private func nutritionTotalsGrid(_ macros: MacroBreakdown) -> some View {

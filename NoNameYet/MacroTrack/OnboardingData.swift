@@ -485,7 +485,9 @@ final class OnboardingData: ObservableObject {
     }
 
     func updateCompletion(for date: Date, completion: DayCompletion) {
-        dailyCompletions[dayKey(for: date)] = completion
+        let key = dayKey(for: date)
+        dailyCompletions[key] = completion
+        objectWillChange.send() // Force UI update across all views
     }
 
     func foodLog(for date: Date) -> [FoodEntry] {
