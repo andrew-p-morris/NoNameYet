@@ -759,20 +759,20 @@ final class OnboardingData: ObservableObject {
                 name: food.name,
                 macros: food.macros
             )
-            addFoodEntry(entry, for: result.date)
+            self.addFoodEntry(entry, for: result.date)
             foodsLogged.append(food.name)
         }
         
         // Log water
         if let water = result.water {
-            let currentWater = waterIntake(for: result.date)
-            addWaterIntake(water.ounces, for: result.date)
+            let currentWater = self.waterIntake(for: result.date)
+            self.addWaterIntake(water.ounces, for: result.date)
             waterLogged = currentWater + water.ounces
         }
         
         // Process workouts
-        let key = dayKey(for: result.date)
-        guard let plan = generatedPlan else {
+        let key = self.dayKey(for: result.date)
+        guard let plan = self.generatedPlan else {
             // If no plan, still generate message for foods/water
             var messageParts: [String] = []
             if !foodsLogged.isEmpty {
@@ -799,7 +799,7 @@ final class OnboardingData: ObservableObject {
             return
         }
         
-        var completion = dailyCompletions[key] ?? DayCompletion(
+        var dayCompletion = self.dailyCompletions[key] ?? DayCompletion(
             cardioComplete: false,
             strengthComplete: false,
             caloriesConsumed: 0,
@@ -828,10 +828,10 @@ final class OnboardingData: ObservableObject {
                         distance: distance,
                         intensity: plan.cardio.intensity
                     )
-                    completion.plannedCardio = newCardio
+                    dayCompletion.plannedCardio = newCardio
                     
                     if workout.isComplete {
-                        completion.cardioComplete = true
+                        dayCompletion.cardioComplete = true
                     }
                     
                     let workoutDesc = workout.distance != nil 
@@ -853,10 +853,10 @@ final class OnboardingData: ObservableObject {
                         reps: reps,
                         intensity: plan.strength.intensity
                     )
-                    completion.plannedStrength = newStrength
+                    dayCompletion.plannedStrength = newStrength
                     
                     if workout.isComplete {
-                        completion.strengthComplete = true
+                        dayCompletion.strengthComplete = true
                     }
                     
                     let workoutDesc = workout.sets != nil && workout.reps != nil
@@ -867,8 +867,8 @@ final class OnboardingData: ObservableObject {
             }
         }
         
-        // Save updated completion
-        dailyCompletions[key] = completion
+        // Save updated dayCompletion
+        self.dailyCompletions[key] = dayCompletion
         
         // Generate confirmation message
         var messageParts: [String] = []
