@@ -224,7 +224,17 @@ struct CalendarSectionView: View {
                     case .cardio:
                         if let cardio = workout.cardio {
                             HStack(spacing: 12) {
-                                checkBox(isChecked: workout.isComplete)
+                                AnimatedCheckmarkButton(isChecked: Binding(
+                                    get: { workout.isComplete },
+                                    set: { newValue in
+                                        var updatedWorkout = workout
+                                        updatedWorkout.isComplete = newValue
+                                        onboardingData.updateWorkout(at: index, workout: updatedWorkout, for: date)
+                                    }
+                                )) {
+                                    // Trigger achievement checks
+                                    let _ = onboardingData.checkAchievements()
+                                }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("CARDIO")
                                         .font(SimplePalette.retroFont(size: 14, weight: .bold))
@@ -238,7 +248,17 @@ struct CalendarSectionView: View {
                     case .strength:
                         if let strength = workout.strength {
                             HStack(spacing: 12) {
-                                checkBox(isChecked: workout.isComplete)
+                                AnimatedCheckmarkButton(isChecked: Binding(
+                                    get: { workout.isComplete },
+                                    set: { newValue in
+                                        var updatedWorkout = workout
+                                        updatedWorkout.isComplete = newValue
+                                        onboardingData.updateWorkout(at: index, workout: updatedWorkout, for: date)
+                                    }
+                                )) {
+                                    // Trigger achievement checks
+                                    let _ = onboardingData.checkAchievements()
+                                }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("STRENGTH")
                                         .font(SimplePalette.retroFont(size: 14, weight: .bold))
