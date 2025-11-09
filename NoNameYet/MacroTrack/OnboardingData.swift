@@ -793,8 +793,10 @@ final class OnboardingData: ObservableObject {
             }
             let success = !foodsLogged.isEmpty || result.water != nil
             let message = success ? messageParts.joined(separator: " ") : "Could not parse any food or water from your input."
+            let finalFoodsLogged = foodsLogged
+            let finalWaterLogged = waterLogged
             await MainActor.run {
-                completion(success, message, foodsLogged, waterLogged)
+                completion(success, message, finalFoodsLogged, finalWaterLogged)
             }
             return
         }
@@ -899,9 +901,11 @@ final class OnboardingData: ObservableObject {
         
         let success = !foodsLogged.isEmpty || result.water != nil || !result.workouts.isEmpty
         let message = success ? messageParts.joined(separator: " ") : "Could not parse any food, water, or workouts from your input."
+        let finalFoodsLogged = foodsLogged
+        let finalWaterLogged = waterLogged
         
         await MainActor.run {
-            completion(success, message, foodsLogged, waterLogged)
+            completion(success, message, finalFoodsLogged, finalWaterLogged)
         }
         }
     }
