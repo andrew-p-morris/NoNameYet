@@ -19,6 +19,7 @@ struct NutritionSectionView: View {
     @State private var selectedDate: Date = Date()
     @State private var waterConsumed: Int = 0
     @State private var waterTarget: Int = 120
+    @State private var otherLiquids: [LiquidEntry] = []
     @State private var isLoading: Bool = false
 
     init() {
@@ -48,6 +49,13 @@ struct NutritionSectionView: View {
                     
                     waterIntakeCard
                         .id("water-\(selectedDate)")
+                        .transition(.opacity)
+                        .opacity(isLoading ? 0.3 : 1.0)
+                        .animation(.easeInOut(duration: 0.2), value: isLoading)
+                        .animation(.easeInOut(duration: 0.3), value: selectedDate)
+                    
+                    otherLiquidsCard
+                        .id("liquids-\(selectedDate)")
                         .transition(.opacity)
                         .opacity(isLoading ? 0.3 : 1.0)
                         .animation(.easeInOut(duration: 0.2), value: isLoading)
@@ -500,6 +508,99 @@ struct NutritionSectionView: View {
         }
         .padding(.horizontal, 24)
     }
+    
+    private var otherLiquidsCard: some View {
+        SimpleCardPane {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack {
+                    Text("OTHER LIQUIDS")
+                        .font(SimplePalette.retroFont(size: 20, weight: .bold))
+                        .foregroundStyle(SimplePalette.cardTextPrimary)
+                    
+                    Spacer()
+                    
+                    Text("(\(otherLiquids.count) ITEMS)")
+                        .font(SimplePalette.retroFont(size: 14, weight: .medium))
+                        .foregroundStyle(SimplePalette.cardTextSecondary)
+                }
+                
+                if otherLiquids.isEmpty {
+                    Text("NO OTHER LIQUIDS LOGGED")
+                        .font(SimplePalette.retroFont(size: 14, weight: .medium))
+                        .foregroundStyle(SimplePalette.cardTextSecondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 12)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(otherLiquids) { liquid in
+                            liquidRow(liquid: liquid)
+                            
+                            if liquid.id != otherLiquids.last?.id {
+                                Divider().background(SimplePalette.cardBorder)
+                            }
+                        }
+                    }
+                    
+                    Divider().background(SimplePalette.cardBorder)
+                    
+                    // Liquids macro totals
+                    let liquidTotals = otherLiquids.reduce(MacroBreakdown(calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0)) { acc, liquid in
+                        MacroBreakdown(
+                            calories: acc.calories + liquid.macros.calories,
+                            protein: acc.protein + liquid.macros.protein,
+                            carbs: acc.carbs + liquid.macros.carbs,
+                            sugar: acc.sugar + liquid.macros.sugar,
+                            fat: acc.fat + liquid.macros.fat
+                        )
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("LIQUID TOTALS")
+                            .font(SimplePalette.retroFont(size: 14, weight: .bold))
+                            .foregroundStyle(SimplePalette.cardTextSecondary)
+                        
+                        Text("\(liquidTotals.calories) KCAL • \(liquidTotals.protein)G P • \(liquidTotals.carbs)G C • \(liquidTotals.sugar)G S • \(liquidTotals.fat)G F")
+                            .font(SimplePalette.retroFont(size: 13, weight: .medium))
+                            .foregroundStyle(SimplePalette.cardTextPrimary)
+                    }
+                }
+            }
+            .simpleCardPadding()
+        }
+        .padding(.horizontal, 24)
+    }
+    
+    private func liquidRow(liquid: LiquidEntry) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "drop.fill")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(SimplePalette.waterBlue)
+                .frame(width: 24)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(liquid.name.uppercased())
+                    .font(SimplePalette.retroFont(size: 15, weight: .bold))
+                    .foregroundStyle(SimplePalette.cardTextPrimary)
+                
+                HStack(spacing: 8) {
+                    Text("\(liquid.ounces) OZ")
+                        .font(SimplePalette.retroFont(size: 13, weight: .medium))
+                        .foregroundStyle(SimplePalette.cardTextSecondary)
+                    
+                    Text("•")
+                        .foregroundStyle(SimplePalette.cardTextSecondary)
+                    
+                    Text("\(liquid.macros.calories) KCAL")
+                        .font(SimplePalette.retroFont(size: 13, weight: .medium))
+                        .foregroundStyle(SimplePalette.cardTextSecondary)
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+    }
 
     private func quickAddButton(amount: Int, label: String) -> some View {
         Button(action: {
@@ -532,6 +633,7 @@ struct NutritionSectionView: View {
             }
             foodLog = onboardingData.foodLog(for: selectedDate)
             waterConsumed = onboardingData.waterIntake(for: selectedDate)
+            otherLiquids = onboardingData.otherLiquids(for: selectedDate)
         }
     }
 

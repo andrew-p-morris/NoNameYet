@@ -106,6 +106,20 @@ struct FoodEntry: Identifiable, Equatable {
     }
 }
 
+struct LiquidEntry: Identifiable, Equatable {
+    let id: UUID
+    var name: String
+    var macros: MacroBreakdown
+    var ounces: Int
+
+    init(id: UUID = UUID(), name: String, macros: MacroBreakdown, ounces: Int) {
+        self.id = id
+        self.name = name
+        self.macros = macros
+        self.ounces = ounces
+    }
+}
+
 enum CardioType: String, CaseIterable, Identifiable {
     case run = "Run"
     case bike = "Bike"
@@ -324,6 +338,7 @@ struct DayCompletion {
     var caloriesTarget: Int
     var proteinTarget: Int
     var foodLog: [FoodEntry]
+    var otherLiquids: [LiquidEntry] // Track juice, milk, alcohol, etc.
     var plannedCardio: CardioWorkout? // Keep for backward compatibility
     var plannedStrength: StrengthWorkout? // Keep for backward compatibility
     var plannedWorkouts: [Workout] // New array for multiple workouts
@@ -338,6 +353,7 @@ struct DayCompletion {
         caloriesTarget: Int = 0,
         proteinTarget: Int = 0,
         foodLog: [FoodEntry] = [],
+        otherLiquids: [LiquidEntry] = [],
         plannedCardio: CardioWorkout? = nil,
         plannedStrength: StrengthWorkout? = nil,
         plannedWorkouts: [Workout] = [],
@@ -351,6 +367,7 @@ struct DayCompletion {
         self.caloriesTarget = caloriesTarget
         self.proteinTarget = proteinTarget
         self.foodLog = foodLog
+        self.otherLiquids = otherLiquids
         self.plannedCardio = plannedCardio
         self.plannedStrength = plannedStrength
         self.plannedWorkouts = plannedWorkouts
@@ -487,7 +504,8 @@ final class OnboardingData: ObservableObject {
         
         existing.foodLog.append(entry)
         
-        let consumed = existing.foodLog.reduce(MacroBreakdown(calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0)) { acc, entry in
+        // Calculate macros from both food and other liquids
+        let foodMacros = existing.foodLog.reduce(MacroBreakdown(calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0)) { acc, entry in
             MacroBreakdown(
                 calories: acc.calories + entry.macros.calories,
                 protein: acc.protein + entry.macros.protein,
@@ -497,8 +515,69 @@ final class OnboardingData: ObservableObject {
             )
         }
         
-        existing.caloriesConsumed = consumed.calories
-        existing.proteinConsumed = consumed.protein
+        let liquidMacros = existing.otherLiquids.reduce(MacroBreakdown(calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0)) { acc, entry in
+            MacroBreakdown(
+                calories: acc.calories + entry.macros.calories,
+                protein: acc.protein + entry.macros.protein,
+                carbs: acc.carbs + entry.macros.carbs,
+                sugar: acc.sugar + entry.macros.sugar,
+                fat: acc.fat + entry.macros.fat
+            )
+        }
+        
+        existing.caloriesConsumed = foodMacros.calories + liquidMacros.calories
+        existing.proteinConsumed = foodMacros.protein + liquidMacros.protein
+        existing.caloriesTarget = plan.macroTargets.calories
+        existing.proteinTarget = plan.macroTargets.protein
+        
+        dailyCompletions[key] = existing
+    }
+    
+    func addLiquidEntry(_ entry: LiquidEntry, for date: Date) {
+        let key = dayKey(for: date)
+        guard let plan = generatedPlan else { return }
+        
+        var existing = dailyCompletions[key] ?? DayCompletion(
+            cardioComplete: false,
+            strengthComplete: false,
+            caloriesConsumed: 0,
+            proteinConsumed: 0,
+            caloriesTarget: plan.macroTargets.calories,
+            proteinTarget: plan.macroTargets.protein,
+            foodLog: [],
+            otherLiquids: [],
+            plannedCardio: nil,
+            plannedStrength: nil,
+            plannedWorkouts: [],
+            waterConsumed: 0,
+            waterTarget: plan.waterIntakeOz
+        )
+        
+        existing.otherLiquids.append(entry)
+        
+        // Calculate macros from both food and other liquids
+        let foodMacros = existing.foodLog.reduce(MacroBreakdown(calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0)) { acc, entry in
+            MacroBreakdown(
+                calories: acc.calories + entry.macros.calories,
+                protein: acc.protein + entry.macros.protein,
+                carbs: acc.carbs + entry.macros.carbs,
+                sugar: acc.sugar + entry.macros.sugar,
+                fat: acc.fat + entry.macros.fat
+            )
+        }
+        
+        let liquidMacros = existing.otherLiquids.reduce(MacroBreakdown(calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0)) { acc, entry in
+            MacroBreakdown(
+                calories: acc.calories + entry.macros.calories,
+                protein: acc.protein + entry.macros.protein,
+                carbs: acc.carbs + entry.macros.carbs,
+                sugar: acc.sugar + entry.macros.sugar,
+                fat: acc.fat + entry.macros.fat
+            )
+        }
+        
+        existing.caloriesConsumed = foodMacros.calories + liquidMacros.calories
+        existing.proteinConsumed = foodMacros.protein + liquidMacros.protein
         existing.caloriesTarget = plan.macroTargets.calories
         existing.proteinTarget = plan.macroTargets.protein
         
@@ -693,6 +772,10 @@ final class OnboardingData: ObservableObject {
     func waterIntake(for date: Date) -> Int {
         return completion(for: date)?.waterConsumed ?? 0
     }
+    
+    func otherLiquids(for date: Date) -> [LiquidEntry] {
+        return completion(for: date)?.otherLiquids ?? []
+    }
 
     func addWaterIntake(_ ounces: Int, for date: Date) {
         let key = dayKey(for: date)
@@ -768,6 +851,16 @@ final class OnboardingData: ObservableObject {
             let currentWater = self.waterIntake(for: result.date)
             self.addWaterIntake(water.ounces, for: result.date)
             waterLogged = currentWater + water.ounces
+        }
+        
+        // Log other liquids (juice, milk, alcohol, etc.)
+        for liquid in result.otherLiquids {
+            let entry = LiquidEntry(
+                name: liquid.name,
+                macros: liquid.macros,
+                ounces: liquid.ounces
+            )
+            self.addLiquidEntry(entry, for: result.date)
         }
         
         // Process workouts

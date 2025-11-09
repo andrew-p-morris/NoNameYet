@@ -30,12 +30,12 @@ class OpenAIService {
         let foodList = availableFoods.values.map { "- \($0.name)" }.joined(separator: "\n")
         
         let systemPrompt = """
-        You are a fitness tracking assistant. Parse user input about food, water, and workouts.
+        You are a fitness tracking assistant. Parse user input about food, water, other liquids, and workouts.
         
         Available foods in database:
         \(foodList)
         
-        IMPORTANT: User can mention multiple items in one message (e.g., "I ate a burger and fries and drank 2 glasses of water")
+        IMPORTANT: User can mention multiple items in one message (e.g., "I ate a burger and fries and drank 2 glasses of water and had a beer")
         
         Respond ONLY with valid JSON in this exact format:
         {
@@ -47,6 +47,12 @@ class OpenAIService {
             }
           ],
           "water_ounces": 0,
+          "other_liquids": [
+            {
+              "name": "Drink name (e.g., Orange Juice, Beer, Milk, Soda)",
+              "ounces": 8
+            }
+          ],
           "workouts": [
             {
               "type": "cardio" | "strength",
@@ -62,10 +68,11 @@ class OpenAIService {
         
         Rules:
         1. For FOOD: Match to database foods (fuzzy match ok, e.g., "big mac" -> "Big Mac"). Extract quantity (default 1.0). Can have multiple foods.
-        2. For WATER: Extract ounces (8 oz per glass/cup). Sum all water mentioned.
-        3. For WORKOUTS: Extract type, details, and duration/distance/sets/reps as mentioned.
-        4. DATE: Default to "today" unless user says otherwise.
-        5. Arrays can be empty [] if nothing mentioned.
+        2. For WATER: Plain water only. Extract ounces (8 oz per glass/cup). Sum all water mentioned.
+        3. For OTHER LIQUIDS: Juice, milk, alcohol (beer, wine, cocktails), soda, sports drinks, etc. Extract ounces (8 oz per glass/cup, 12 oz per can/bottle).
+        4. For WORKOUTS: Extract type, details, and duration/distance/sets/reps as mentioned.
+        5. DATE: Default to "today" unless user says otherwise.
+        6. Arrays can be empty [] if nothing mentioned.
         
         Examples:
         Input: "I ate 2 chicken breasts and a large fries"
@@ -76,31 +83,31 @@ class OpenAIService {
             {"name": "Large Fries", "quantity": 1.0}
           ],
           "water_ounces": 0,
+          "other_liquids": [],
           "workouts": []
         }
         
-        Input: "Had 3 glasses of water"
+        Input: "Had 3 glasses of water and a beer"
         Output: {
           "date": "today",
           "foods": [],
           "water_ounces": 24,
+          "other_liquids": [
+            {"name": "Beer", "ounces": 12}
+          ],
           "workouts": []
         }
         
-        Input: "Ran 3 miles yesterday"
+        Input: "Drank orange juice and milk this morning"
         Output: {
-          "date": "yesterday",
+          "date": "today",
           "foods": [],
           "water_ounces": 0,
-          "workouts": [{
-            "type": "cardio",
-            "cardio_type": "Run",
-            "strength_exercise": null,
-            "duration": null,
-            "distance": 3.0,
-            "sets": null,
-            "reps": null
-          }]
+          "other_liquids": [
+            {"name": "Orange Juice", "ounces": 8},
+            {"name": "Milk", "ounces": 8}
+          ],
+          "workouts": []
         }
         """
         
@@ -199,6 +206,24 @@ class OpenAIService {
             parsedWater = ParsedWater(ounces: waterOunces)
         }
         
+        // Parse other liquids (juice, milk, alcohol, etc.)
+        var parsedOtherLiquids: [ParsedLiquid] = []
+        if let liquidsArray = json["other_liquids"] as? [[String: Any]] {
+            for liquidDict in liquidsArray {
+                if let name = liquidDict["name"] as? String,
+                   let ounces = liquidDict["ounces"] as? Int {
+                    // Use AI to estimate macros for the liquid
+                    if let estimatedMacros = try? await estimateMacros(foodName: name, quantity: Double(ounces) / 8.0) {
+                        parsedOtherLiquids.append(ParsedLiquid(
+                            name: name,
+                            ounces: ounces,
+                            macros: estimatedMacros
+                        ))
+                    }
+                }
+            }
+        }
+        
         // Parse workouts
         var parsedWorkouts: [ParsedWorkout] = []
         if let workoutsArray = json["workouts"] as? [[String: Any]] {
@@ -237,6 +262,7 @@ class OpenAIService {
             date: date,
             foods: parsedFoods,
             water: parsedWater,
+            otherLiquids: parsedOtherLiquids,
             workouts: parsedWorkouts,
             rawText: jsonString
         )

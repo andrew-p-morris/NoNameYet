@@ -10,6 +10,12 @@ struct ParsedWater {
     let ounces: Int
 }
 
+struct ParsedLiquid {
+    let name: String
+    let ounces: Int
+    let macros: MacroBreakdown
+}
+
 enum ParsedWorkoutType {
     case cardio
     case strength
@@ -41,6 +47,7 @@ struct ParsedResult {
     let date: Date
     let foods: [ParsedFood]
     let water: ParsedWater?
+    let otherLiquids: [ParsedLiquid]
     let workouts: [ParsedWorkout]
     let rawText: String
 }
@@ -78,6 +85,7 @@ struct CoachNotesParser {
             date: date,
             foods: foods,
             water: water,
+            otherLiquids: [], // Regex parser doesn't support other liquids
             workouts: workouts,
             rawText: input
         )
