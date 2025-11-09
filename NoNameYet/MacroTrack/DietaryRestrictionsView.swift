@@ -13,6 +13,7 @@ struct DietaryRestrictionsView: View {
     @State private var selectedOption: Option?
     @State private var dietaryInput: String = ""
     @State private var typingIndicator = false
+    @State private var restrictionsConfirmed = false
     @FocusState private var isTextFocused: Bool
     @State private var navigateToPlan = false
     @State private var selectedDietType: DietType?
@@ -28,12 +29,12 @@ struct DietaryRestrictionsView: View {
                     VStack(alignment: .leading, spacing: 24) {
                         optionButtons
 
-                        if selectedOption == .restrictions {
+                        if selectedOption == .restrictions && !restrictionsConfirmed {
                             chatPanel
                                 .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                         
-                        if selectedOption != nil {
+                        if (selectedOption == .restrictions && restrictionsConfirmed) || selectedOption == .none {
                             dietTypeSelection
                                 .transition(.opacity.combined(with: .move(edge: .top)))
                         }
@@ -56,28 +57,9 @@ struct DietaryRestrictionsView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 16) {
-            Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(SimplePalette.retroBlack)
-                    .frame(width: 44, height: 44)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(SimplePalette.retroWhite)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
-                            )
-                            .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
-                    )
-            }
-            .buttonStyle(.plain)
-
-            Text("DIETARY RESTRICTIONS")
-                .font(SimplePalette.retroFont(size: 26, weight: .bold))
-                .foregroundStyle(SimplePalette.textPrimary)
-        }
+        Text("DIETARY RESTRICTIONS")
+            .font(SimplePalette.retroFont(size: 26, weight: .bold))
+            .foregroundStyle(SimplePalette.textPrimary)
     }
 
     private var optionButtons: some View {
@@ -182,6 +164,28 @@ struct DietaryRestrictionsView: View {
                 }
                 .transition(.opacity)
             }
+            
+            // Confirm button
+            Button(action: {
+                restrictionsConfirmed = true
+                isTextFocused = false
+            }) {
+                Text("CONFIRM")
+                    .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                    .foregroundStyle(SimplePalette.retroBlack)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(SimplePalette.retroWhite)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                            )
+                            .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
+                    )
+            }
+            .buttonStyle(.plain)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0.1), value: typingIndicator)
         .onChange(of: dietaryInput) { newValue in
@@ -248,11 +252,13 @@ struct DietaryRestrictionsView: View {
         switch option {
         case .restrictions:
             triggerTypingIndicator()
+            restrictionsConfirmed = false
         case .none:
             dietaryInput = ""
             onboardingData.dietaryInputRaw = ""
             onboardingData.dietaryRestrictions = []
             typingIndicator = false
+            restrictionsConfirmed = false
         }
     }
 

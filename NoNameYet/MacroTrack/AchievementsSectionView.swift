@@ -4,6 +4,7 @@ struct AchievementsSectionView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var onboardingData: OnboardingData
     @State private var unlockedAchievement: Int?
+    @State private var selectedAchievement: Achievement?
     
     static let achievements: [Achievement] = [
         // Distance Traveled (10)
@@ -111,6 +112,9 @@ struct AchievementsSectionView: View {
             }
             .padding(.top, 60)
         }
+        .sheet(item: $selectedAchievement) { achievement in
+            AchievementDetailSheet(achievement: achievement)
+        }
     }
     
     private var header: some View {
@@ -187,6 +191,12 @@ struct AchievementsSectionView: View {
                 .frame(height: 32)
         }
         .frame(maxWidth: .infinity)
+        .onTapGesture {
+            // Show details for locked achievements
+            if !onboardingData.earnedAchievements.contains(achievement.id) {
+                selectedAchievement = achievement
+            }
+        }
         .onLongPressGesture(minimumDuration: 1.0) {
             // Testing feature: Long press to manually unlock
             withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
@@ -291,6 +301,105 @@ struct SpinningCoinView: View {
                     .font(SimplePalette.retroFont(size: 32, weight: .bold))
                     .foregroundStyle(SimplePalette.retroBlack)
             }
+        }
+    }
+}
+
+struct AchievementDetailSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let achievement: Achievement
+    
+    var body: some View {
+        ZStack {
+            SimplePalette.background.ignoresSafeArea()
+            
+            VStack(spacing: 24) {
+                Spacer()
+                
+                // Achievement icon (large)
+                StaticAchievementIcon(icon: achievement.icon, isLocked: true)
+                    .scaleEffect(1.5)
+                
+                // Achievement name
+                Text(achievement.name)
+                    .font(SimplePalette.retroFont(size: 24, weight: .bold))
+                    .foregroundStyle(SimplePalette.textPrimary)
+                    .multilineTextAlignment(.center)
+                
+                // Description
+                Text(achievement.description)
+                    .font(SimplePalette.retroFont(size: 16, weight: .medium))
+                    .foregroundStyle(SimplePalette.cardTextSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                
+                // Threshold info
+                VStack(spacing: 8) {
+                    Text("REQUIREMENT")
+                        .font(SimplePalette.retroFont(size: 12, weight: .bold))
+                        .foregroundStyle(SimplePalette.cardTextSecondary)
+                    
+                    Text(thresholdText(for: achievement))
+                        .font(SimplePalette.retroFont(size: 18, weight: .bold))
+                        .foregroundStyle(SimplePalette.retroRed)
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(SimplePalette.cardBackground)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(SimplePalette.cardBorder, lineWidth: 2)
+                        )
+                )
+                
+                Spacer()
+                
+                // Close button
+                Button(action: { dismiss() }) {
+                    Text("CLOSE")
+                        .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                        .foregroundStyle(SimplePalette.retroBlack)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(SimplePalette.retroWhite)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                                )
+                                .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
+                        )
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 48)
+                .padding(.bottom, 32)
+            }
+        }
+        .presentationDetents([.medium])
+    }
+    
+    private func thresholdText(for achievement: Achievement) -> String {
+        switch achievement.category {
+        case .distance:
+            return "\(Int(achievement.threshold)) MILES"
+        case .streak:
+            return "\(Int(achievement.threshold)) DAYS IN A ROW"
+        case .weight:
+            if achievement.id == 21 {
+                return "REACH TARGET WEIGHT"
+            } else if achievement.id == 22 {
+                return "RECORD FIRST WEIGHT"
+            } else {
+                return "\(Int(achievement.threshold)) CONSECUTIVE WEIGH-INS"
+            }
+        case .macros:
+            return "\(Int(achievement.threshold)) DAYS IN A ROW"
+        case .workouts:
+            return "\(Int(achievement.threshold)) WORKOUTS"
+        case .water:
+            return "\(Int(achievement.threshold)) DAYS"
         }
     }
 }

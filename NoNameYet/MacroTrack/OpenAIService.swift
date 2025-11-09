@@ -29,8 +29,22 @@ class OpenAIService {
         let availableFoods = FoodDatabase.foods
         let foodList = availableFoods.values.map { "- \($0.name)" }.joined(separator: "\n")
         
+        // Provide current date context
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .full
+        let todayString = dateFormatter.string(from: Date())
+        
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: Date())
+        let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+        let todayWeekday = weekdays[weekday - 1]
+        
         let systemPrompt = """
         You are a fitness tracking assistant. Parse user input about food, water, other liquids, and workouts.
+        
+        CURRENT DATE CONTEXT:
+        - Today is: \(todayString)
+        - Today is: \(todayWeekday)
         
         Available foods in database:
         \(foodList)
@@ -39,7 +53,7 @@ class OpenAIService {
         
         Respond ONLY with valid JSON in this exact format:
         {
-          "date": "today" | "yesterday" | "2 days ago",
+          "date": "YYYY-MM-DD" (use actual date, e.g., "2025-11-09"),
           "foods": [
             {
               "name": "Food Name from database",
@@ -71,7 +85,14 @@ class OpenAIService {
         2. For WATER: Plain water only. Extract ounces (8 oz per glass/cup). Sum all water mentioned.
         3. For OTHER LIQUIDS: Juice, milk, alcohol (beer, wine, cocktails), soda, sports drinks, etc. Extract ounces (8 oz per glass/cup, 12 oz per can/bottle).
         4. For WORKOUTS: Extract type, details, and duration/distance/sets/reps as mentioned.
-        5. DATE: Default to "today" unless user says otherwise.
+        5. DATE: Parse intelligently. Examples:
+           - "today" → today's date
+           - "yesterday" → yesterday's date
+           - "Monday" → most recent Monday (past or today)
+           - "last Friday" → previous Friday
+           - "Nov 9" or "November 9" → Nov 9 of current year
+           - "3 days ago" → 3 days before today
+           - Default to today if no date mentioned
         6. Arrays can be empty [] if nothing mentioned.
         
         Examples:
@@ -350,7 +371,17 @@ class OpenAIService {
         let calendar = Calendar.current
         let today = Date()
         
+        // Try parsing as ISO format first (YYYY-MM-DD)
+        let isoFormatter = DateFormatter()
+        isoFormatter.dateFormat = "yyyy-MM-dd"
+        if let parsedDate = isoFormatter.date(from: dateString) {
+            return parsedDate
+        }
+        
+        // Fallback to keyword parsing
         switch dateString.lowercased() {
+        case "today":
+            return today
         case "yesterday":
             return calendar.date(byAdding: .day, value: -1, to: today) ?? today
         case "2 days ago", "two days ago":

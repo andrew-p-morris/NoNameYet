@@ -567,8 +567,10 @@ struct HealthPlanView: View {
             caloriesTarget: plan.macroTargets.calories,
             proteinTarget: plan.macroTargets.protein,
             foodLog: foodLog,
+            otherLiquids: existing?.otherLiquids ?? [],
             plannedCardio: existing?.plannedCardio ?? workouts.cardio,
             plannedStrength: existing?.plannedStrength ?? workouts.strength,
+            plannedWorkouts: existing?.plannedWorkouts ?? [],
             waterConsumed: existing?.waterConsumed ?? 0,
             waterTarget: plan.waterIntakeOz
         )
