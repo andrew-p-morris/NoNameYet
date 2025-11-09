@@ -746,11 +746,12 @@ final class OnboardingData: ObservableObject {
         dailyCompletions[key] = existing
     }
 
-    func parseAndLogCoachInput(_ input: String) -> (success: Bool, message: String, foodsLogged: [String], waterLogged: Int?) {
-        let result = CoachNotesParser.parse(input)
-        var foodsLogged: [String] = []
-        var waterLogged: Int? = nil
-        var workoutsLogged: [String] = []
+    func parseAndLogCoachInput(_ input: String, completion: @escaping (Bool, String, [String], Int?) -> Void) {
+        Task {
+            let result = await CoachNotesParser.parseWithAI(input)
+            var foodsLogged: [String] = []
+            var waterLogged: Int? = nil
+            var workoutsLogged: [String] = []
         
         // Log foods
         for food in result.foods {
@@ -792,7 +793,10 @@ final class OnboardingData: ObservableObject {
             }
             let success = !foodsLogged.isEmpty || result.water != nil
             let message = success ? messageParts.joined(separator: " ") : "Could not parse any food or water from your input."
-            return (success: success, message: message, foodsLogged: foodsLogged, waterLogged: waterLogged)
+            await MainActor.run {
+                completion(success, message, foodsLogged, waterLogged)
+            }
+            return
         }
         
         var completion = dailyCompletions[key] ?? DayCompletion(
@@ -896,7 +900,10 @@ final class OnboardingData: ObservableObject {
         let success = !foodsLogged.isEmpty || result.water != nil || !result.workouts.isEmpty
         let message = success ? messageParts.joined(separator: " ") : "Could not parse any food, water, or workouts from your input."
         
-        return (success: success, message: message, foodsLogged: foodsLogged, waterLogged: waterLogged)
+        await MainActor.run {
+            completion(success, message, foodsLogged, waterLogged)
+        }
+        }
     }
     
     // Struct to hold parsed preview data before logging
@@ -921,8 +928,9 @@ final class OnboardingData: ObservableObject {
         }
     }
     
-    func parseCoachInputPreview(_ input: String) -> ParsedPreview {
-        let result = CoachNotesParser.parse(input)
+    func parseCoachInputPreview(_ input: String, completion: @escaping (ParsedPreview) -> Void) {
+        Task {
+            let result = await CoachNotesParser.parseWithAI(input)
         
         var foodItems: [(name: String, macros: MacroBreakdown)] = []
         for food in result.foods {
@@ -952,13 +960,18 @@ final class OnboardingData: ObservableObject {
             }
         }
         
-        return ParsedPreview(
+        let preview = ParsedPreview(
             date: result.date,
             foods: foodItems,
             water: result.water?.ounces,
             workouts: workoutItems,
             hasContent: !foodItems.isEmpty || result.water != nil || !workoutItems.isEmpty
         )
+        
+        await MainActor.run {
+            completion(preview)
+        }
+        }
     }
 
     func getChartData(for metric: ChartMetric, timeRange: ChartTimeRange) -> [(date: Date, value: Int)] {

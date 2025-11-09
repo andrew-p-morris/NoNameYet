@@ -46,6 +46,18 @@ struct ParsedResult {
 }
 
 struct CoachNotesParser {
+    /// NEW: Use OpenAI to parse coach input (async)
+    static func parseWithAI(_ input: String) async -> ParsedResult {
+        do {
+            return try await OpenAIService.shared.parseCoachInput(input)
+        } catch {
+            print("OpenAI parsing failed, falling back to regex: \(error.localizedDescription)")
+            // Fallback to regex parser if OpenAI fails
+            return parse(input)
+        }
+    }
+    
+    /// OLD: Legacy regex-based parser (used as fallback)
     static func parse(_ input: String) -> ParsedResult {
         let normalized = input.lowercased()
         let calendar = Calendar.current

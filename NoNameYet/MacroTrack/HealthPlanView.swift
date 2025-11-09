@@ -795,22 +795,22 @@ struct HealthPlanView: View {
         }
 
         // Parse first to show preview
-        let preview = onboardingData.parseCoachInputPreview(input)
-        
-        if preview.hasContent {
-            // Show confirmation sheet
-            pendingInput = input
-            parsedPreview = preview
-            aiInput = ""
-            isTextFocused = false
-        } else {
-            // No content parsed, show error
-            confirmationMessage = "Could not parse any food, water, or workouts from your input."
-            showConfirmation = true
-            aiInput = ""
-            isTextFocused = false
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                showConfirmation = false
+        onboardingData.parseCoachInputPreview(input) { preview in
+            if preview.hasContent {
+                // Show confirmation sheet
+                pendingInput = input
+                parsedPreview = preview
+                aiInput = ""
+                isTextFocused = false
+            } else {
+                // No content parsed, show error
+                confirmationMessage = "Could not parse any food, water, or workouts from your input."
+                showConfirmation = true
+                aiInput = ""
+                isTextFocused = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    showConfirmation = false
+                }
             }
         }
     }
@@ -974,15 +974,16 @@ struct HealthPlanView: View {
                 
                 Button(action: {
                     // Actually log the items
-                    let result = onboardingData.parseAndLogCoachInput(pendingInput)
-                    confirmationMessage = result.message
-                    showConfirmation = true
-                    
-                    parsedPreview = nil
-                    pendingInput = ""
-                    
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                        showConfirmation = false
+                    onboardingData.parseAndLogCoachInput(pendingInput) { success, message, foodsLogged, waterLogged in
+                        confirmationMessage = message
+                        showConfirmation = true
+                        
+                        parsedPreview = nil
+                        pendingInput = ""
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                            showConfirmation = false
+                        }
                     }
                 }) {
                     Text("Confirm")
