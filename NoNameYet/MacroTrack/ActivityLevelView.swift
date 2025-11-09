@@ -27,7 +27,7 @@ struct ActivityLevelView: View {
                 Spacer(minLength: 0)
 
                 bottomArrow
-                    .padding(.bottom, 20)
+                    .padding(.bottom, 40)
             }
             .padding(.horizontal, 24)
             .padding(.top, 60)

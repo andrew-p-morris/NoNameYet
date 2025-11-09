@@ -46,6 +46,7 @@ struct DietaryRestrictionsView: View {
                 Spacer(minLength: 0)
 
                 bottomArrow
+                    .padding(.bottom, 40)
             }
             .padding(.horizontal, 24)
             .padding(.top, 60)
@@ -261,7 +262,9 @@ struct DietaryRestrictionsView: View {
     }
 
     private func select(_ option: Option) {
-        selectedOption = option
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            selectedOption = option
+        }
 
         switch option {
         case .restrictions:
@@ -304,14 +307,17 @@ struct DietaryRestrictionsView: View {
 
     private func configureFromData() {
         dietaryInput = onboardingData.dietaryInputRaw
-        selectedDietType = onboardingData.dietType
-
-        // Only pre-select if user has explicitly made a choice before
+        
+        // Only pre-load diet type if returning to edit existing restrictions
         if !onboardingData.dietaryRestrictions.isEmpty || !dietaryInput.isEmpty {
             selectedOption = .restrictions
-            restrictionsConfirmed = true // If they already typed, consider it confirmed
+            restrictionsConfirmed = true
+            selectedDietType = onboardingData.dietType
+        } else {
+            // Fresh start - nothing pre-selected
+            selectedOption = nil
+            selectedDietType = nil
         }
-        // Don't auto-select .none - let user choose fresh
     }
 }
 
