@@ -2,14 +2,13 @@ import SwiftUI
 
 private enum SignUpField: Int, CaseIterable {
     case username
+    case gender
     case age
     case weight
     case height
 }
 
 private enum ActivePicker: Identifiable {
-    case age
-    case weight
     case height
 
     var id: Int { hashValue }
@@ -20,13 +19,14 @@ struct SignUpView: View {
     @EnvironmentObject private var onboardingData: OnboardingData
 
     @State private var username = ""
+    @State private var gender: Gender?
     @State private var visibleFieldCount: Int = 1
     @State private var navigateToFitnessSetup = false
 
-    @State private var age: Int = 25
+    @State private var ageText: String = ""
     @State private var ageConfirmed = false
 
-    @State private var weight: Int = 160
+    @State private var weightText: String = ""
     @State private var weightUnit: WeightUnit = .pounds
     @State private var weightConfirmed = false
 
@@ -42,15 +42,15 @@ struct SignUpView: View {
 
     var body: some View {
         ZStack {
-            liquidGlassBackground()
+            simpleBackground()
 
             VStack {
-                LiquidGlassPane {
+                SimpleCardPane {
                     VStack(alignment: .center, spacing: 32) {
-                        Text("Sign Up")
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                        Text("SIGN UP")
+                            .font(SimplePalette.retroFont(size: 32, weight: .bold))
                             .tracking(1.2)
-                            .foregroundStyle(LiquidGlassPalette.textPrimary)
+                            .foregroundStyle(SimplePalette.cardTextPrimary)
 
                         VStack(spacing: 24) {
                             capsuleField(
@@ -60,19 +60,16 @@ struct SignUpView: View {
                                 keyboardType: .default
                             )
 
+                            if isFieldVisible(.gender) {
+                                genderSelector
+                            }
+
                             if isFieldVisible(.age) {
-                                capsuleSelector(
-                                    label: ageConfirmed ? "Age: \(age)" : "AGE",
-                                    action: { activePicker = .age }
-                                )
+                                ageInputField
                             }
 
                             if isFieldVisible(.weight) {
-                                let valueText = weightConfirmed ? "Weight: \(weight) \(weightUnit.shortLabel.uppercased())" : "Weight"
-                                capsuleSelector(
-                                    label: valueText,
-                                    action: { activePicker = .weight }
-                                )
+                                weightInputField
                             }
 
                             if isFieldVisible(.height) {
@@ -94,39 +91,25 @@ struct SignUpView: View {
                         }
                     }
                     .padding(.vertical, 40)
-                    .liquidGlassPanePadding()
+                    .simpleCardPadding()
                     .frame(maxWidth: .infinity)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 80)
 
                 Spacer(minLength: 0)
+
+                if isFormComplete {
+                    bottomArrow
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 32)
+                }
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear(perform: configureFromOnboardingData)
         .sheet(item: $activePicker) { picker in
             switch picker {
-            case .age:
-                AgePickerSheet(age: age, onCancel: dismissPicker, onDone: { newAge in
-                    age = newAge
-                    ageConfirmed = true
-                    onboardingData.age = newAge
-                    visibleFieldCount = max(visibleFieldCount, SignUpField.weight.rawValue + 1)
-                    dismissPicker()
-                    presentNextIfNeeded(.weight)
-                })
-            case .weight:
-                WeightPickerSheet(weight: weight, unit: weightUnit, onCancel: dismissPicker, onDone: { newWeight, newUnit in
-                    weight = newWeight
-                    weightUnit = newUnit
-                    weightConfirmed = true
-                    onboardingData.weight = newWeight
-                    onboardingData.weightUnit = newUnit
-                    visibleFieldCount = max(visibleFieldCount, SignUpField.height.rawValue + 1)
-                    dismissPicker()
-                    presentNextIfNeeded(.height)
-                })
             case .height:
                 HeightPickerSheet(
                     unit: heightUnit,
@@ -160,6 +143,14 @@ struct SignUpView: View {
         field.rawValue < visibleFieldCount
     }
 
+    private var isFormComplete: Bool {
+        !username.trimmingCharacters(in: .whitespaces).isEmpty &&
+        gender != nil &&
+        ageConfirmed &&
+        weightConfirmed &&
+        heightConfirmed
+    }
+
     @ViewBuilder
     private func capsuleField(
         placeholder: String,
@@ -181,25 +172,20 @@ struct SignUpView: View {
 
     private func capsuleSelector(label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(label.uppercased())
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundStyle(LiquidGlassPalette.textPrimary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 72)
-                .background(
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [LiquidGlassPalette.glassTop, LiquidGlassPalette.glassBottom.opacity(0.6)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .overlay(
+                    Text(label.uppercased())
+                        .font(SimplePalette.retroFont(size: 18, weight: .bold))
+                        .foregroundStyle(SimplePalette.cardTextPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 72)
+                        .background(
                             Capsule()
-                                .stroke(LiquidGlassPalette.glassBorder, lineWidth: 1)
+                                .fill(SimplePalette.cardBackground)
+                                .overlay(
+                                    Capsule()
+                                        .stroke(SimplePalette.cardBorder, lineWidth: 3)
+                                )
+                                .shadow(color: Color.black.opacity(0.3), radius: 0, x: 2, y: 2)
                         )
-                )
         }
         .buttonStyle(.plain)
         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -216,9 +202,132 @@ struct SignUpView: View {
         }
 
         onboardingData.username = trimmed
-        visibleFieldCount = max(visibleFieldCount, SignUpField.age.rawValue + 1)
+        visibleFieldCount = max(visibleFieldCount, SignUpField.gender.rawValue + 1)
         focusedField = nil
-        presentNextIfNeeded(.age)
+    }
+    
+    private var ageInputField: some View {
+        CapsuleTextField(
+            placeholder: "AGE",
+            text: $ageText,
+            focusedField: _focusedField,
+            field: .age,
+            keyboardType: .numberPad,
+            submitAction: { handleAgeSubmit() }
+        )
+        .transition(.opacity.combined(with: .move(edge: .top)))
+        .animation(.easeInOut(duration: 0.25), value: visibleFieldCount)
+        .onChange(of: ageText) { newValue in
+            // Auto-advance to weight field after 2 digits
+            if newValue.count == 2, let ageValue = Int(newValue), ageValue >= 13 && ageValue <= 100 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    handleAgeSubmit()
+                    focusedField = .weight
+                }
+            }
+        }
+    }
+    
+    private var weightInputField: some View {
+        VStack(spacing: 12) {
+            CapsuleTextField(
+                placeholder: "WEIGHT",
+                text: $weightText,
+                focusedField: _focusedField,
+                field: .weight,
+                keyboardType: .decimalPad,
+                submitAction: { handleWeightSubmit() }
+            )
+            
+            if !weightText.isEmpty {
+                HStack(spacing: 12) {
+                    ForEach(WeightUnit.allCases) { unit in
+                        Button(action: {
+                            weightUnit = unit
+                            handleWeightSubmit()
+                        }) {
+                            Text(unit.shortLabel.uppercased())
+                                .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                                .foregroundStyle(weightUnit == unit ? SimplePalette.retroWhite : SimplePalette.cardTextPrimary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(weightUnit == unit ? SimplePalette.retroRed : SimplePalette.cardBackground)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                                        )
+                                        .shadow(color: Color.black.opacity(0.3), radius: 0, x: 2, y: 2)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .transition(.opacity.combined(with: .move(edge: .top)))
+        .animation(.easeInOut(duration: 0.25), value: visibleFieldCount)
+    }
+    
+    private func handleAgeSubmit() {
+        guard let ageValue = Int(ageText.trimmingCharacters(in: .whitespaces)),
+              ageValue >= 13 && ageValue <= 100 else {
+            return
+        }
+        ageConfirmed = true
+        onboardingData.age = ageValue
+        visibleFieldCount = max(visibleFieldCount, SignUpField.weight.rawValue + 1)
+        focusedField = nil
+    }
+    
+    private func handleWeightSubmit() {
+        guard let weightValue = Double(weightText.trimmingCharacters(in: .whitespaces)),
+              weightValue > 0 else {
+            return
+        }
+        let intWeight = Int(weightValue.rounded())
+        let clampedWeight = weightUnit == .pounds 
+            ? max(80, min(400, intWeight))
+            : max(36, min(180, intWeight))
+        
+        weightConfirmed = true
+        onboardingData.weight = clampedWeight
+        onboardingData.weightUnit = weightUnit
+        visibleFieldCount = max(visibleFieldCount, SignUpField.height.rawValue + 1)
+        focusedField = nil
+        presentNextIfNeeded(.height)
+    }
+    
+    private var genderSelector: some View {
+        HStack(spacing: 12) {
+            ForEach(Gender.allCases.filter { $0 != .other }) { genderOption in
+                Button(action: {
+                    gender = genderOption
+                    onboardingData.gender = genderOption
+                    visibleFieldCount = max(visibleFieldCount, SignUpField.age.rawValue + 1)
+                }) {
+                    Text(genderOption.rawValue.uppercased())
+                        .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                        .foregroundStyle(gender == genderOption ? SimplePalette.retroWhite : SimplePalette.cardTextPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 60)
+                        .background(
+                            Capsule()
+                                .fill(gender == genderOption ? SimplePalette.retroRed : SimplePalette.cardBackground)
+                                .overlay(
+                                    Capsule()
+                                        .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                                )
+                                .shadow(color: Color.black.opacity(0.3), radius: 0, x: 2, y: 2)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .transition(.opacity.combined(with: .move(edge: .top)))
+        .animation(.easeInOut(duration: 0.25), value: visibleFieldCount)
     }
 
     private func dismissPicker() {
@@ -227,20 +336,33 @@ struct SignUpView: View {
 
     private func presentNextIfNeeded(_ picker: ActivePicker) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            switch picker {
-            case .age:
-                if !ageConfirmed {
-                    activePicker = .age
-                }
-            case .weight:
-                if !weightConfirmed {
-                    activePicker = .weight
-                }
-            case .height:
-                if !heightConfirmed {
-                    activePicker = .height
-                }
+            if case .height = picker, !heightConfirmed {
+                activePicker = .height
             }
+        }
+    }
+
+    private var bottomArrow: some View {
+        HStack {
+            Spacer()
+            Button(action: { navigateToFitnessSetup = true }) {
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(SimplePalette.retroBlack)
+                    .frame(width: 56, height: 56)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(SimplePalette.retroWhite)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                            )
+                            .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
+                    )
+            }
+            .buttonStyle(.plain)
+            .opacity(isFormComplete ? 1 : 0.4)
+            .disabled(!isFormComplete)
         }
     }
 }
@@ -257,23 +379,17 @@ private struct CapsuleTextField: View {
     var body: some View {
         ZStack {
             Capsule()
-                .fill(
-                    LinearGradient(
-                        colors: [LiquidGlassPalette.glassTop, LiquidGlassPalette.glassBottom.opacity(0.6)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(SimplePalette.cardBackground)
                 .frame(height: 72)
                 .overlay(
                     Capsule()
-                        .stroke(LiquidGlassPalette.glassBorder, lineWidth: 1)
+                        .stroke(SimplePalette.cardBorder, lineWidth: 1)
                 )
 
             if text.isEmpty {
                 Text(placeholder)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundStyle(LiquidGlassPalette.textSecondary)
+                    .font(SimplePalette.retroFont(size: 18, weight: .bold))
+                    .foregroundStyle(SimplePalette.cardTextSecondary)
                     .allowsHitTesting(false)
             }
 
@@ -284,8 +400,8 @@ private struct CapsuleTextField: View {
                 .focused($focusedField, equals: field)
                 .submitLabel(.next)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(LiquidGlassPalette.textPrimary)
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .foregroundStyle(SimplePalette.cardTextPrimary)
+                .font(SimplePalette.retroFont(size: 18, weight: .bold))
                 .padding(.horizontal, 24)
                 .onSubmit(submitAction)
         }
@@ -299,17 +415,22 @@ extension SignUpView {
     private func configureFromOnboardingData() {
         if !onboardingData.username.isEmpty {
             username = onboardingData.username
+            visibleFieldCount = max(visibleFieldCount, SignUpField.gender.rawValue + 1)
+        }
+
+        if let storedGender = onboardingData.gender {
+            gender = storedGender
             visibleFieldCount = max(visibleFieldCount, SignUpField.age.rawValue + 1)
         }
 
         if let storedAge = onboardingData.age {
-            age = storedAge
+            ageText = "\(storedAge)"
             ageConfirmed = true
             visibleFieldCount = max(visibleFieldCount, SignUpField.weight.rawValue + 1)
         }
 
         if let storedWeight = onboardingData.weight {
-            weight = storedWeight
+            weightText = "\(storedWeight)"
             weightUnit = onboardingData.weightUnit
             weightConfirmed = true
             visibleFieldCount = max(visibleFieldCount, SignUpField.height.rawValue + 1)
@@ -329,6 +450,96 @@ extension SignUpView {
     }
 }
 
+// MARK: - Retro Picker Component
+
+private struct RetroPicker<Value: Hashable & Comparable>: View where Value: Strideable, Value.Stride: SignedInteger {
+    @Binding var selection: Value
+    let range: ClosedRange<Value>
+    let format: (Value) -> String
+    
+    private let itemHeight: CGFloat = 50
+    
+    var body: some View {
+        GeometryReader { geometry in
+            let centerY = geometry.size.height / 2
+            let selectedIndex = index(for: selection)
+            
+            ZStack {
+                // Background
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(SimplePalette.cardBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(SimplePalette.cardBorder, lineWidth: 2)
+                    )
+                
+                // Selection indicator
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(SimplePalette.retroRed.opacity(0.3))
+                    .frame(height: itemHeight)
+                    .offset(y: 0)
+                
+                // Items
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: 0) {
+                            ForEach(Array(range.enumerated()), id: \.element) { index, value in
+                                pickerItem(value: value, isSelected: value == selection)
+                                    .id(index)
+                                    .frame(height: itemHeight)
+                            }
+                        }
+                        .padding(.vertical, centerY - itemHeight / 2)
+                    }
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                proxy.scrollTo(selectedIndex, anchor: .center)
+                            }
+                        }
+                    }
+                    .onChange(of: selection) { newValue in
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            proxy.scrollTo(index(for: newValue), anchor: .center)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func pickerItem(value: Value, isSelected: Bool) -> some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                selection = value
+            }
+        }) {
+            Text(format(value))
+                .font(SimplePalette.retroFont(size: isSelected ? 20 : 16, weight: .bold))
+                .foregroundStyle(isSelected ? SimplePalette.retroBlack : SimplePalette.cardTextSecondary)
+                .frame(maxWidth: .infinity)
+                .frame(height: itemHeight)
+                .background(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(isSelected ? SimplePalette.retroRed : Color.clear)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .stroke(isSelected ? SimplePalette.retroBlack : Color.clear, lineWidth: 2)
+                        )
+                        .shadow(color: isSelected ? Color.black.opacity(0.3) : Color.clear, radius: 0, x: 2, y: 2)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private func index(for value: Value) -> Int {
+        let array = Array(range)
+        return array.firstIndex(of: value) ?? 0
+    }
+}
+
+// MARK: - Picker Sheets
+
 private struct AgePickerSheet: View {
     @State private var localAge: Int
 
@@ -342,22 +553,68 @@ private struct AgePickerSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Picker("Age", selection: $localAge) {
-                ForEach(13...100, id: \.self) { value in
-                    Text("\(value)").tag(value)
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onCancel()
                 }
-            }
-            .pickerStyle(.wheel)
-            .navigationTitle("Select Age")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+            
+            VStack(spacing: 0) {
+                SimpleCardPane {
+                    VStack(spacing: 24) {
+                        Text("SELECT AGE")
+                            .font(SimplePalette.retroFont(size: 24, weight: .bold))
+                            .foregroundStyle(SimplePalette.cardTextPrimary)
+                        
+                        RetroPicker(
+                            selection: $localAge,
+                            range: 13...100,
+                            format: { "\($0)" }
+                        )
+                        .frame(height: 200)
+                        
+                        HStack(spacing: 16) {
+                            Button(action: onCancel) {
+                                Text("CANCEL")
+                                    .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                                    .foregroundStyle(SimplePalette.retroBlack)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .fill(SimplePalette.retroWhite)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                                            )
+                                            .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Button(action: { onDone(localAge) }) {
+                                Text("DONE")
+                                    .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                                    .foregroundStyle(SimplePalette.retroBlack)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .fill(SimplePalette.retroRed)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                                            )
+                                            .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .simpleCardPadding()
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { onDone(localAge) }
-                }
+                .padding(.horizontal, 40)
             }
         }
     }
@@ -380,37 +637,96 @@ private struct WeightPickerSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                Picker("Unit", selection: $localUnit) {
-                    ForEach(WeightUnit.allCases) { unit in
-                        Text(unit.displayName).tag(unit)
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onCancel()
+                }
+            
+            VStack(spacing: 0) {
+                SimpleCardPane {
+                    VStack(spacing: 24) {
+                        Text("SELECT WEIGHT")
+                            .font(SimplePalette.retroFont(size: 24, weight: .bold))
+                            .foregroundStyle(SimplePalette.cardTextPrimary)
+                        
+                        // Unit selector
+                        HStack(spacing: 12) {
+                            ForEach(WeightUnit.allCases) { unit in
+                                Button(action: {
+                                    let converted = convert(weight: localWeight, from: previousUnit, to: unit)
+                                    localWeight = min(max(converted, unit.range.lowerBound), unit.range.upperBound)
+                                    previousUnit = localUnit
+                                    localUnit = unit
+                                }) {
+                                    Text(unit.shortLabel.uppercased())
+                                        .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                                        .foregroundStyle(localUnit == unit ? SimplePalette.retroWhite : SimplePalette.retroBlack)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 12)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                .fill(localUnit == unit ? SimplePalette.retroRed : SimplePalette.retroWhite)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                        .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                                                )
+                                                .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        
+                        RetroPicker(
+                            selection: $localWeight,
+                            range: localUnit.range,
+                            format: { "\($0) \(localUnit.shortLabel.uppercased())" }
+                        )
+                        .frame(height: 200)
+                        
+                        HStack(spacing: 16) {
+                            Button(action: onCancel) {
+                                Text("CANCEL")
+                                    .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                                    .foregroundStyle(SimplePalette.retroBlack)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .fill(SimplePalette.retroWhite)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                                            )
+                                            .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Button(action: { onDone(localWeight, localUnit) }) {
+                                Text("DONE")
+                                    .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                                    .foregroundStyle(SimplePalette.retroBlack)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .fill(SimplePalette.retroRed)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                                            )
+                                            .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
+                    .simpleCardPadding()
                 }
-                .pickerStyle(.segmented)
-
-                Picker("Weight", selection: $localWeight) {
-                    ForEach(localUnit.range, id: \.self) { value in
-                        Text("\(value) \(localUnit.shortLabel)").tag(value)
-                    }
-                }
-                .pickerStyle(.wheel)
-            }
-            .padding()
-            .navigationTitle("Select Weight")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { onDone(localWeight, localUnit) }
-                }
-            }
-            .onChange(of: localUnit) { newUnit in
-                let converted = convert(weight: localWeight, from: previousUnit, to: newUnit)
-                localWeight = min(max(converted, newUnit.range.lowerBound), newUnit.range.upperBound)
-                previousUnit = newUnit
+                .padding(.horizontal, 40)
             }
         }
     }
@@ -464,68 +780,145 @@ private struct HeightPickerSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                Picker("Unit", selection: $localUnit) {
-                    ForEach(HeightUnit.allCases) { unit in
-                        Text(unit.displayName).tag(unit)
-                    }
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onCancel()
                 }
-                .pickerStyle(.segmented)
-
-                if localUnit == .imperial {
-                    HStack(spacing: 16) {
-                        Picker("Feet", selection: $localFeet) {
-                            ForEach(4...7, id: \.self) { value in
-                                Text("\(value) ft").tag(value)
+            
+            VStack(spacing: 0) {
+                SimpleCardPane {
+                    VStack(spacing: 24) {
+                        Text("SELECT HEIGHT")
+                            .font(SimplePalette.retroFont(size: 24, weight: .bold))
+                            .foregroundStyle(SimplePalette.cardTextPrimary)
+                        
+                        // Unit selector
+                        HStack(spacing: 12) {
+                            ForEach(HeightUnit.allCases) { unit in
+                                Button(action: {
+                                    switch unit {
+                                    case .imperial:
+                                        let converted = Self.imperialValues(fromCentimeters: localCentimeters)
+                                        localFeet = converted.feet
+                                        localInches = converted.inches
+                                    case .metric:
+                                        localCentimeters = Self.centimeters(feet: localFeet, inches: localInches)
+                                    }
+                                    localUnit = unit
+                                }) {
+                                    Text(unit.shortLabel.uppercased())
+                                        .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                                        .foregroundStyle(localUnit == unit ? SimplePalette.retroWhite : SimplePalette.retroBlack)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 12)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                .fill(localUnit == unit ? SimplePalette.retroRed : SimplePalette.retroWhite)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                        .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                                                )
+                                                .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
+                                        )
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
-                        .pickerStyle(.wheel)
-
-                        Picker("Inches", selection: $localInches) {
-                            ForEach(0...11, id: \.self) { value in
-                                Text("\(value) in").tag(value)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                    }
-                } else {
-                    Picker("Centimeters", selection: $localCentimeters) {
-                        ForEach(120...220, id: \.self) { value in
-                            Text("\(value) cm").tag(value)
-                        }
-                    }
-                    .pickerStyle(.wheel)
-                }
-            }
-            .padding()
-            .navigationTitle("Select Height")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
+                        
                         if localUnit == .imperial {
-                            let centimeters = Self.centimeters(feet: localFeet, inches: localInches)
-                            onDone(localUnit, localFeet, localInches, centimeters)
+                            HStack(spacing: 16) {
+                                VStack(spacing: 8) {
+                                    Text("FEET")
+                                        .font(SimplePalette.retroFont(size: 14, weight: .bold))
+                                        .foregroundStyle(SimplePalette.cardTextSecondary)
+                                    
+                                    RetroPicker(
+                                        selection: $localFeet,
+                                        range: 4...7,
+                                        format: { "\($0) FT" }
+                                    )
+                                    .frame(height: 150)
+                                }
+                                
+                                VStack(spacing: 8) {
+                                    Text("INCHES")
+                                        .font(SimplePalette.retroFont(size: 14, weight: .bold))
+                                        .foregroundStyle(SimplePalette.cardTextSecondary)
+                                    
+                                    RetroPicker(
+                                        selection: $localInches,
+                                        range: 0...11,
+                                        format: { "\($0) IN" }
+                                    )
+                                    .frame(height: 150)
+                                }
+                            }
                         } else {
-                            let (feet, inches) = Self.imperialValues(fromCentimeters: localCentimeters)
-                            onDone(localUnit, feet, inches, localCentimeters)
+                            VStack(spacing: 8) {
+                                Text("CENTIMETERS")
+                                    .font(SimplePalette.retroFont(size: 14, weight: .bold))
+                                    .foregroundStyle(SimplePalette.cardTextSecondary)
+                                
+                                RetroPicker(
+                                    selection: $localCentimeters,
+                                    range: 120...220,
+                                    format: { "\($0) CM" }
+                                )
+                                .frame(height: 200)
+                            }
+                        }
+                        
+                        HStack(spacing: 16) {
+                            Button(action: onCancel) {
+                                Text("CANCEL")
+                                    .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                                    .foregroundStyle(SimplePalette.retroBlack)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .fill(SimplePalette.retroWhite)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                                            )
+                                            .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Button(action: {
+                                if localUnit == .imperial {
+                                    let centimeters = Self.centimeters(feet: localFeet, inches: localInches)
+                                    onDone(localUnit, localFeet, localInches, centimeters)
+                                } else {
+                                    let (feet, inches) = Self.imperialValues(fromCentimeters: localCentimeters)
+                                    onDone(localUnit, feet, inches, localCentimeters)
+                                }
+                            }) {
+                                Text("DONE")
+                                    .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                                    .foregroundStyle(SimplePalette.retroBlack)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .fill(SimplePalette.retroRed)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                                            )
+                                            .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
+                                    )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
+                    .simpleCardPadding()
                 }
-            }
-            .onChange(of: localUnit) { newUnit in
-                switch newUnit {
-                case .imperial:
-                    let converted = Self.imperialValues(fromCentimeters: localCentimeters)
-                    localFeet = converted.feet
-                    localInches = converted.inches
-                case .metric:
-                    localCentimeters = Self.centimeters(feet: localFeet, inches: localInches)
-                }
+                .padding(.horizontal, 40)
             }
         }
     }

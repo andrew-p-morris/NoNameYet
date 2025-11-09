@@ -12,7 +12,7 @@ struct FitnessGoalsView: View {
     @State private var jiggleGoal: Int?
     @State private var navigateForward = false
 
-    private let goals = Array(1...10)
+    private let goals = Array(1...7)
     private let gridColumns = [
         GridItem(.flexible(), spacing: 18),
         GridItem(.flexible(), spacing: 18)
@@ -20,19 +20,19 @@ struct FitnessGoalsView: View {
 
     var body: some View {
         ZStack {
-            liquidGlassBackground()
+            simpleBackground()
 
             VStack(alignment: .leading, spacing: 32) {
                 header
 
-                LiquidGlassPane {
+                SimpleCardPane {
                     LazyVGrid(columns: gridColumns, spacing: 20) {
                         ForEach(goals, id: \.self) { goal in
                             goalBubble(for: goal)
                         }
                     }
                     .padding(.vertical, 32)
-                    .liquidGlassPanePadding()
+                    .simpleCardPadding()
                 }
 
                 Spacer()
@@ -42,22 +42,17 @@ struct FitnessGoalsView: View {
 
                     Button(action: proceed) {
                         Image(systemName: "arrow.right")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(LiquidGlassPalette.textPrimary)
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(SimplePalette.retroBlack)
                             .frame(width: 56, height: 56)
                             .background(
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [LiquidGlassPalette.glassTop, LiquidGlassPalette.glassBottom.opacity(0.7)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(SimplePalette.retroWhite)
                                     .overlay(
-                                        Circle()
-                                            .stroke(LiquidGlassPalette.glassBorder, lineWidth: 1)
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .stroke(SimplePalette.retroBlack, lineWidth: 3)
                                     )
+                                    .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
                             )
                     }
                     .buttonStyle(.plain)
@@ -80,72 +75,52 @@ struct FitnessGoalsView: View {
         HStack(alignment: .center, spacing: 16) {
             Button(action: { dismiss() }) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(LiquidGlassPalette.textPrimary)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(SimplePalette.retroBlack)
                     .frame(width: 44, height: 44)
                     .background(
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [LiquidGlassPalette.glassTop, LiquidGlassPalette.glassBottom.opacity(0.7)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(SimplePalette.retroWhite)
                             .overlay(
-                                Circle()
-                                    .stroke(LiquidGlassPalette.glassBorder, lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
                             )
+                            .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
                     )
             }
             .buttonStyle(.plain)
 
-            Text("What are your fitness goals")
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundStyle(LiquidGlassPalette.textPrimary)
+            Text("WHAT ARE YOUR FITNESS GOALS")
+                .font(SimplePalette.retroFont(size: 26, weight: .bold))
+                .foregroundStyle(SimplePalette.textPrimary)
         }
     }
 
     private func goalBubble(for goal: Int) -> some View {
         let isSelected = selectedGoals.contains(goal)
+        let goalName = onboardingData.goalDescription(for: goal)
 
         return Button {
             toggle(goal: goal)
         } label: {
-            Text("Goal \(goal)")
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundStyle(isSelected ? LiquidGlassPalette.textPrimary : LiquidGlassPalette.textPrimary.opacity(0.85))
+            Text(goalName.uppercased())
+                .font(SimplePalette.retroFont(size: 14, weight: .bold))
+                .foregroundStyle(isSelected ? SimplePalette.retroWhite : SimplePalette.cardTextPrimary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 60)
                 .background(
-                    Capsule()
-                        .fill(goalGradient(isSelected: isSelected))
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(isSelected ? SimplePalette.retroRed : SimplePalette.cardBackground)
                         .overlay(
-                            Capsule()
-                                .stroke(isSelected ? LiquidGlassPalette.accentBright.opacity(0.6) : LiquidGlassPalette.glassBorder, lineWidth: 1.2)
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(SimplePalette.retroBlack, lineWidth: 3)
                         )
-                        .shadow(color: isSelected ? LiquidGlassPalette.accentBright.opacity(0.35) : .clear, radius: 12, y: 8)
+                        .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
                 )
         }
         .buttonStyle(.plain)
         .scaleEffect(jiggleGoal == goal ? 1.08 : 1)
         .animation(.spring(response: 0.32, dampingFraction: 0.55, blendDuration: 0.1), value: jiggleGoal)
-    }
-
-    private func goalGradient(isSelected: Bool) -> LinearGradient {
-        if isSelected {
-            return LinearGradient(
-                colors: [LiquidGlassPalette.accentSoft.opacity(0.65), LiquidGlassPalette.accentBright.opacity(0.6)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else {
-            return LinearGradient(
-                colors: [LiquidGlassPalette.glassTop, LiquidGlassPalette.glassBottom.opacity(0.6)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
     }
 
     private func toggle(goal: Int) {

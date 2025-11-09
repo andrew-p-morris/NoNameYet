@@ -21,6 +21,12 @@
     D3FA24262C1FD4D80072A7C4 /* CalendarSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3FA24252C1FD4D80072A7C4 /* CalendarSectionView.swift */; };
     D3FA24282C1FD4E80072A7C4 /* SettingsSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3FA24272C1FD4E80072A7C4 /* SettingsSectionView.swift */; };
     D3FA24AA2C1FD9F20072A7C4 /* DataSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3FA24A92C1FD9F20072A7C4 /* DataSectionView.swift */; };
+    D3FA24AC2C1FD9F30072A7C4 /* FoodDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3FA24AB2C1FD9F30072A7C4 /* FoodDatabase.swift */; };
+    D3FA24AE2C1FD9F40072A7C4 /* CoachNotesParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3FA24AD2C1FD9F40072A7C4 /* CoachNotesParser.swift */; };
+    D3FA24B02C1FD9F50072A7C4 /* ActivityLevelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3FA24AF2C1FD9F50072A7C4 /* ActivityLevelView.swift */; };
+    D3FA24B22C1FD9F60072A7C4 /* PlanGenerationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3FA24B12C1FD9F60072A7C4 /* PlanGenerationView.swift */; };
+    D3FA24B32C1FD9F70072A7C4 /* AchievementsSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3FA24B22C1FD9F70072A7C4 /* AchievementsSectionView.swift */; };
+		D3FA24B52C1FD9F70072A7C5 /* WeightSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3FA24B42C1FD9F70072A7C5 /* WeightSectionView.swift */; };
     D33B5F532C1F7C9300B47B92 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D33B5F522C1F7C9300B47B92 /* Assets.xcassets */; };
     D33B5F572C1F7C9300B47B92 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D33B5F562C1F7C9300B47B92 /* Preview Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -42,6 +48,12 @@
     D3FA24252C1FD4D80072A7C4 /* CalendarSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSectionView.swift; sourceTree = "<group>"; };
     D3FA24272C1FD4E80072A7C4 /* SettingsSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSectionView.swift; sourceTree = "<group>"; };
     D3FA24A92C1FD9F20072A7C4 /* DataSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSectionView.swift; sourceTree = "<group>"; };
+    D3FA24AB2C1FD9F30072A7C4 /* FoodDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodDatabase.swift; sourceTree = "<group>"; };
+    D3FA24AD2C1FD9F40072A7C4 /* CoachNotesParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachNotesParser.swift; sourceTree = "<group>"; };
+    D3FA24AF2C1FD9F50072A7C4 /* ActivityLevelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityLevelView.swift; sourceTree = "<group>"; };
+    D3FA24B12C1FD9F60072A7C4 /* PlanGenerationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanGenerationView.swift; sourceTree = "<group>"; };
+    D3FA24B22C1FD9F70072A7C4 /* AchievementsSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsSectionView.swift; sourceTree = "<group>"; };
+		D3FA24B42C1FD9F70072A7C5 /* WeightSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightSectionView.swift; sourceTree = "<group>"; };
     D33B5F522C1F7C9300B47B92 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
     D33B5F552C1F7C9300B47B92 /* Preview Content */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "Preview Content"; sourceTree = "<group>"; };
     D33B5F562C1F7C9300B47B92 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
@@ -86,6 +98,12 @@
         D3FA24252C1FD4D80072A7C4 /* CalendarSectionView.swift */,
         D3FA24A92C1FD9F20072A7C4 /* DataSectionView.swift */,
         D3FA24272C1FD4E80072A7C4 /* SettingsSectionView.swift */,
+        D3FA24AB2C1FD9F30072A7C4 /* FoodDatabase.swift */,
+        D3FA24AD2C1FD9F40072A7C4 /* CoachNotesParser.swift */,
+        D3FA24AF2C1FD9F50072A7C4 /* ActivityLevelView.swift */,
+        D3FA24B12C1FD9F60072A7C4 /* PlanGenerationView.swift */,
+        D3FA24B22C1FD9F70072A7C4 /* AchievementsSectionView.swift */,
+				D3FA24B42C1FD9F70072A7C5 /* WeightSectionView.swift */,
         D33B5F702C1F8F9F00B47B92 /* LiquidGlassShowcaseView.swift */,
         D33B5F522C1F7C9300B47B92 /* Assets.xcassets */,
         D33B5F552C1F7C9300B47B92 /* Preview Content */,
@@ -175,7 +193,13 @@
         D3FA24242C1FD4C80072A7C4 /* NutritionSectionView.swift in Sources */,
         D3FA24262C1FD4D80072A7C4 /* CalendarSectionView.swift in Sources */,
         D3FA24AA2C1FD9F20072A7C4 /* DataSectionView.swift in Sources */,
+        D3FA24AC2C1FD9F30072A7C4 /* FoodDatabase.swift in Sources */,
+        D3FA24AE2C1FD9F40072A7C4 /* CoachNotesParser.swift in Sources */,
+        D3FA24B02C1FD9F50072A7C4 /* ActivityLevelView.swift in Sources */,
+        D3FA24B22C1FD9F60072A7C4 /* PlanGenerationView.swift in Sources */,
         D3FA24282C1FD4E80072A7C4 /* SettingsSectionView.swift in Sources */,
+        D3FA24B32C1FD9F70072A7C4 /* AchievementsSectionView.swift in Sources */,
+				D3FA24B52C1FD9F70072A7C5 /* WeightSectionView.swift in Sources */,
         D33B5F712C1F8F9F00B47B92 /* LiquidGlassShowcaseView.swift in Sources */,
       );
       runOnlyForDeploymentPostprocessing = 0;

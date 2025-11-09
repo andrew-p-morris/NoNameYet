@@ -15,15 +15,16 @@ struct DietaryRestrictionsView: View {
     @State private var typingIndicator = false
     @FocusState private var isTextFocused: Bool
     @State private var navigateToPlan = false
+    @State private var selectedDietType: DietType?
 
     var body: some View {
         ZStack {
-            liquidGlassBackground()
+            simpleBackground()
 
             VStack(alignment: .leading, spacing: 32) {
                 header
 
-                LiquidGlassPane {
+                SimpleCardPane {
                     VStack(alignment: .leading, spacing: 24) {
                         optionButtons
 
@@ -31,9 +32,14 @@ struct DietaryRestrictionsView: View {
                             chatPanel
                                 .transition(.opacity.combined(with: .move(edge: .top)))
                         }
+                        
+                        if selectedOption != nil {
+                            dietTypeSelection
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
                     }
                     .padding(.vertical, 32)
-                    .liquidGlassPanePadding()
+                    .simpleCardPadding()
                 }
 
                 Spacer(minLength: 0)
@@ -45,7 +51,7 @@ struct DietaryRestrictionsView: View {
         }
         .onAppear(perform: configureFromData)
         .navigationDestination(isPresented: $navigateToPlan) {
-            HealthPlanView()
+            ActivityLevelView()
         }
     }
 
@@ -53,40 +59,71 @@ struct DietaryRestrictionsView: View {
         HStack(spacing: 16) {
             Button(action: { dismiss() }) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(LiquidGlassPalette.textPrimary)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(SimplePalette.retroBlack)
                     .frame(width: 44, height: 44)
                     .background(
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [LiquidGlassPalette.glassTop, LiquidGlassPalette.glassBottom.opacity(0.7)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(SimplePalette.retroWhite)
                             .overlay(
-                                Circle()
-                                    .stroke(LiquidGlassPalette.glassBorder, lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
                             )
+                            .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
                     )
             }
             .buttonStyle(.plain)
 
-            Text("Dietary Restrictions")
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundStyle(LiquidGlassPalette.textPrimary)
+            Text("DIETARY RESTRICTIONS")
+                .font(SimplePalette.retroFont(size: 26, weight: .bold))
+                .foregroundStyle(SimplePalette.textPrimary)
         }
     }
 
     private var optionButtons: some View {
         HStack(spacing: 16) {
-            capsuleButton(label: "Dietary Restrictions", isSelected: selectedOption == .some(.restrictions)) {
+            capsuleButton(label: "YES", isSelected: selectedOption == Option.restrictions) {
                 select(.restrictions)
             }
 
-            capsuleButton(label: "None", isSelected: selectedOption == .some(.none)) {
+            capsuleButton(label: "NO", isSelected: selectedOption == .none) {
                 select(.none)
+            }
+        }
+    }
+    
+    private var dietTypeSelection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("SELECT DIET TYPE")
+                .font(SimplePalette.retroFont(size: 18, weight: .bold))
+                .foregroundStyle(SimplePalette.cardTextPrimary)
+            
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12)
+            ], spacing: 12) {
+                ForEach(DietType.allCases) { dietType in
+                    Button(action: {
+                        selectedDietType = dietType
+                        onboardingData.dietType = dietType
+                    }) {
+                        Text(dietType.rawValue.uppercased())
+                            .font(SimplePalette.retroFont(size: 14, weight: .bold))
+                            .foregroundStyle(selectedDietType == dietType ? SimplePalette.retroWhite : SimplePalette.cardTextPrimary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(selectedDietType == dietType ? SimplePalette.retroRed : SimplePalette.cardBackground)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                                    )
+                                    .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }
@@ -94,38 +131,38 @@ struct DietaryRestrictionsView: View {
     private var chatPanel: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 12) {
-                Circle()
-                    .fill(LiquidGlassPalette.accentBright.opacity(0.35))
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(SimplePalette.retroRed.opacity(0.2))
                     .frame(width: 42, height: 42)
                     .overlay(
                         Image(systemName: "sparkles")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(LiquidGlassPalette.textPrimary)
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(SimplePalette.retroRed)
                     )
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Coach Assistant")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundStyle(LiquidGlassPalette.textPrimary)
+                    Text("COACH ASSISTANT")
+                        .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                        .foregroundStyle(SimplePalette.cardTextPrimary)
 
-                    Text("Enter dietary restrictions separated by commas (e.g., dairy, gluten, shellfish).")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(LiquidGlassPalette.textSecondary)
+                    Text("ENTER DIETARY RESTRICTIONS SEPARATED BY COMMAS (E.G., DAIRY, GLUTEN, SHELLFISH).")
+                        .font(SimplePalette.retroFont(size: 14, weight: .medium))
+                        .foregroundStyle(SimplePalette.cardTextSecondary)
                 }
             }
 
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(LiquidGlassPalette.glassBorder.opacity(0.8), lineWidth: 1.4)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(SimplePalette.cardBorder, lineWidth: 3)
                     .background(
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .fill(.ultraThinMaterial)
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(SimplePalette.cardBackground)
                     )
 
                 TextEditor(text: $dietaryInput)
                     .focused($isTextFocused)
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundColor(LiquidGlassPalette.textPrimary)
+                    .font(SimplePalette.retroFont(size: 16, weight: .medium))
+                    .foregroundColor(SimplePalette.cardTextPrimary)
                     .padding(16)
                     .frame(minHeight: 140, maxHeight: 180)
                     .scrollContentBackground(.hidden)
@@ -134,13 +171,13 @@ struct DietaryRestrictionsView: View {
 
             if typingIndicator {
                 HStack(spacing: 6) {
-                    Text("Analyzing details…")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(LiquidGlassPalette.textSecondary)
+                    Text("ANALYZING DETAILS…")
+                        .font(SimplePalette.retroFont(size: 13, weight: .medium))
+                        .foregroundStyle(SimplePalette.cardTextSecondary)
 
                     ProgressView()
                         .progressViewStyle(.circular)
-                        .tint(LiquidGlassPalette.accentBright)
+                        .tint(SimplePalette.retroRed)
                         .scaleEffect(0.8)
                 }
                 .transition(.opacity)
@@ -164,27 +201,22 @@ struct DietaryRestrictionsView: View {
 
             Button(action: proceed) {
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(LiquidGlassPalette.textPrimary)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(SimplePalette.retroBlack)
                     .frame(width: 56, height: 56)
                     .background(
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [LiquidGlassPalette.glassTop, LiquidGlassPalette.glassBottom.opacity(0.7)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(SimplePalette.retroWhite)
                             .overlay(
-                                Circle()
-                                    .stroke(LiquidGlassPalette.glassBorder, lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
                             )
+                            .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
                     )
             }
             .buttonStyle(.plain)
-            .opacity(selectedOption == nil ? 0.4 : 1)
-            .disabled(selectedOption == nil)
+            .opacity(selectedOption == nil || selectedDietType == nil ? 0.4 : 1)
+            .disabled(selectedOption == nil || selectedDietType == nil)
         }
     }
 
@@ -192,26 +224,19 @@ struct DietaryRestrictionsView: View {
     private func capsuleButton(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundStyle(isSelected ? LiquidGlassPalette.textPrimary : LiquidGlassPalette.textPrimary.opacity(0.85))
+                .font(SimplePalette.retroFont(size: 16, weight: .bold))
+                .foregroundStyle(isSelected ? SimplePalette.retroWhite : SimplePalette.cardTextPrimary)
                 .padding(.horizontal, 24)
                 .frame(height: 60)
                 .frame(maxWidth: .infinity)
                 .background(
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: isSelected
-                                ? [LiquidGlassPalette.accentSoft.opacity(0.6), LiquidGlassPalette.accentBright.opacity(0.55)]
-                                : [LiquidGlassPalette.glassTop, LiquidGlassPalette.glassBottom.opacity(0.6)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(isSelected ? SimplePalette.retroRed : SimplePalette.cardBackground)
                         .overlay(
-                            Capsule()
-                                .stroke(isSelected ? LiquidGlassPalette.accentBright.opacity(0.6) : LiquidGlassPalette.glassBorder, lineWidth: 1.2)
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(SimplePalette.retroBlack, lineWidth: 3)
                         )
+                        .shadow(color: Color.black.opacity(0.4), radius: 0, x: 4, y: 4)
                 )
         }
         .buttonStyle(.plain)
@@ -248,15 +273,23 @@ struct DietaryRestrictionsView: View {
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
         }
-        onboardingData.generatePlaceholderPlan()
+        
+        if let dietType = selectedDietType {
+            onboardingData.dietType = dietType
+        }
+        
+        // Don't generate plan here - wait for PlanGenerationView
         navigateToPlan = true
     }
 
     private func configureFromData() {
         dietaryInput = onboardingData.dietaryInputRaw
+        selectedDietType = onboardingData.dietType
 
         if !onboardingData.dietaryRestrictions.isEmpty || !dietaryInput.isEmpty {
             selectedOption = .restrictions
+        } else if onboardingData.dietType != nil {
+            selectedOption = Option.none
         }
     }
 }
