@@ -86,6 +86,10 @@ struct AchievementsSectionView: View {
         GridItem(.flexible(), spacing: 16)
     ]
     
+    private var achievementsByCategory: [AchievementCategory: [Achievement]] {
+        Dictionary(grouping: Self.achievements, by: { $0.category })
+    }
+    
     var body: some View {
         ZStack {
             simpleBackground()
@@ -94,12 +98,14 @@ struct AchievementsSectionView: View {
                 header
                 
                 ScrollView {
-                    LazyVGrid(columns: gridColumns, spacing: 24) {
-                        ForEach(Self.achievements) { achievement in
-                            achievementCoin(achievement: achievement)
-                        }
+                    VStack(alignment: .leading, spacing: 32) {
+                        categorySection(category: .distance)
+                        categorySection(category: .streak)
+                        categorySection(category: .weight)
+                        categorySection(category: .macros)
+                        categorySection(category: .workouts)
+                        categorySection(category: .water)
                     }
-                    .padding(.horizontal, 24)
                     .padding(.vertical, 20)
                 }
             }
@@ -133,6 +139,39 @@ struct AchievementsSectionView: View {
         .padding(.horizontal, 24)
     }
     
+    private func categorySection(category: AchievementCategory) -> some View {
+        let categoryAchievements = achievementsByCategory[category] ?? []
+        let earnedCount = categoryAchievements.filter { onboardingData.earnedAchievements.contains($0.id) }.count
+        
+        return VStack(alignment: .leading, spacing: 16) {
+            // Category header
+            HStack(spacing: 12) {
+                Image(systemName: category.icon)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(SimplePalette.retroRed)
+                
+                Text(category.rawValue.uppercased())
+                    .font(SimplePalette.retroFont(size: 18, weight: .bold))
+                    .foregroundStyle(SimplePalette.cardTextPrimary)
+                
+                Spacer()
+                
+                Text("(\(earnedCount)/\(categoryAchievements.count))")
+                    .font(SimplePalette.retroFont(size: 14, weight: .bold))
+                    .foregroundStyle(SimplePalette.cardTextSecondary)
+            }
+            .padding(.horizontal, 24)
+            
+            // Grid of achievements for this category
+            LazyVGrid(columns: gridColumns, spacing: 16) {
+                ForEach(categoryAchievements) { achievement in
+                    achievementCoin(achievement: achievement)
+                }
+            }
+            .padding(.horizontal, 24)
+        }
+    }
+    
     private func achievementCoin(achievement: Achievement) -> some View {
         VStack(spacing: 12) {
             StaticAchievementIcon(
@@ -148,6 +187,13 @@ struct AchievementsSectionView: View {
                 .frame(height: 32)
         }
         .frame(maxWidth: .infinity)
+        .onLongPressGesture(minimumDuration: 1.0) {
+            // Testing feature: Long press to manually unlock
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                unlockedAchievement = achievement.id
+                onboardingData.earnedAchievements.insert(achievement.id)
+            }
+        }
     }
 }
 
