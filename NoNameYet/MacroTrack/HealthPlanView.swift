@@ -8,6 +8,8 @@ struct HealthPlanView: View {
     @State private var aiInput: String = ""
     @FocusState private var isTextFocused: Bool
     @State private var showConfirmation: Bool = false
+    @State private var showAchievementNotification: Bool = false
+    @State private var newlyUnlockedAchievements: [Int] = []
     @State private var isMenuOpen: Bool = false
     @State private var selectedDestination: MenuDestination?
     @State private var cardioComplete: Bool = false
@@ -38,9 +40,12 @@ struct HealthPlanView: View {
                 }
 
             alertToast
+            
+            achievementNotification
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isMenuOpen)
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: showConfirmation)
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: showAchievementNotification)
         .sheet(item: $selectedDestination) { destination in
             NavigationStack {
                 destinationView(for: destination)
@@ -379,8 +384,8 @@ struct HealthPlanView: View {
                 HStack(spacing: 16) {
                     ForEach(earnedAchievements, id: \.self) { achievementId in
                         VStack(spacing: 8) {
-                            SpinningCoinView(isLocked: false)
-                            Text("ACHIEVEMENT \(achievementId)")
+                            SpinningCoinView(isLocked: false, icon: achievementIcon(for: achievementId))
+                            Text(achievementName(for: achievementId))
                                 .font(SimplePalette.retroFont(size: 10, weight: .bold))
                                 .foregroundStyle(SimplePalette.cardTextSecondary)
                                 .multilineTextAlignment(.center)
@@ -837,6 +842,57 @@ struct HealthPlanView: View {
         }
     }
     
+    private var achievementNotification: some View {
+        Group {
+            if showAchievementNotification, let firstAchievement = newlyUnlockedAchievements.first {
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        StaticAchievementIcon(icon: achievementIcon(for: firstAchievement), isLocked: false)
+                            .scaleEffect(0.8)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("ACHIEVEMENT UNLOCKED!")
+                                .font(SimplePalette.retroFont(size: 12, weight: .bold))
+                                .foregroundStyle(SimplePalette.retroRed)
+                            
+                            Text(achievementName(for: firstAchievement))
+                                .font(SimplePalette.retroFont(size: 14, weight: .bold))
+                                .foregroundStyle(SimplePalette.retroBlack)
+                        }
+                    }
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(SimplePalette.retroWhite)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(SimplePalette.retroBlack, lineWidth: 3)
+                            )
+                            .shadow(color: Color.black.opacity(0.5), radius: 0, x: 5, y: 5)
+                    )
+                }
+                .padding(.bottom, 100)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+    }
+    
+    private func achievementIcon(for id: Int) -> String {
+        switch id {
+        case 1...10: return "ruler"
+        case 11...20: return "calendar.badge.checkmark"
+        case 21...30: return "scalemass"
+        case 31...40: return "flame"
+        case 41...50: return "figure.run"
+        case 51...60: return "drop.fill"
+        default: return "star.fill"
+        }
+    }
+    
+    private func achievementName(for id: Int) -> String {
+        return AchievementsSectionView.achievements.first(where: { $0.id == id })?.name ?? "ACHIEVEMENT \(id)"
+    }
+    
     private func confirmationSheet(preview: OnboardingData.ParsedPreview) -> some View {
         VStack(spacing: 0) {
             // Header
@@ -974,7 +1030,7 @@ struct HealthPlanView: View {
                 
                 Button(action: {
                     // Actually log the items
-                    onboardingData.parseAndLogCoachInput(pendingInput) { success, message, foodsLogged, waterLogged in
+                    onboardingData.parseAndLogCoachInput(pendingInput) { success, message, foodsLogged, waterLogged, newAchievements in
                         confirmationMessage = message
                         showConfirmation = true
                         
@@ -983,6 +1039,17 @@ struct HealthPlanView: View {
                         
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                             showConfirmation = false
+                        }
+                        
+                        // Show achievement unlock notification if any new achievements
+                        if !newAchievements.isEmpty {
+                            newlyUnlockedAchievements = newAchievements
+                            showAchievementNotification = true
+                            
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                                showAchievementNotification = false
+                                newlyUnlockedAchievements = []
+                            }
                         }
                     }
                 }) {

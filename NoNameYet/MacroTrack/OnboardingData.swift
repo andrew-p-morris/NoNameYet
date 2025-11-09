@@ -407,6 +407,15 @@ final class OnboardingData: ObservableObject {
     @Published var todaysFoodLog: [FoodEntry] = []
     @Published var dailyCompletions: [String: DayCompletion] = [:]
     
+    // Achievement tracking
+    @Published var totalDistanceTraveled: Double = 0 // in miles
+    @Published var currentStreak: Int = 0 // consecutive days with at least one goal completed
+    @Published var lastActivityDate: Date? // last date user completed any goal
+    @Published var consecutiveWeighIns: Int = 0 // consecutive weigh-ins without missing
+    @Published var consecutiveMacroDays: Int = 0 // consecutive days hitting calorie + protein
+    @Published var totalWorkoutsCompleted: Int = 0 // total workout days completed
+    @Published var waterGoalDaysCount: Int = 0 // total days hitting water goal
+    
     // Weight tracking
     @Published var currentWeight: Int?
     @Published var weightTarget: Int?
@@ -531,6 +540,11 @@ final class OnboardingData: ObservableObject {
         existing.proteinTarget = plan.macroTargets.protein
         
         dailyCompletions[key] = existing
+        
+        // Check if macro goals met for today (only if today)
+        if Calendar.current.isDateInToday(date) {
+            checkAndUpdateMacroStreak()
+        }
     }
     
     func addLiquidEntry(_ entry: LiquidEntry, for date: Date) {
@@ -582,6 +596,11 @@ final class OnboardingData: ObservableObject {
         existing.proteinTarget = plan.macroTargets.protein
         
         dailyCompletions[key] = existing
+        
+        // Check if macro goals met for today (only if today)
+        if Calendar.current.isDateInToday(date) {
+            checkAndUpdateMacroStreak()
+        }
     }
 
     func removeFoodEntry(_ entry: FoodEntry, for date: Date) {
@@ -797,8 +816,14 @@ final class OnboardingData: ObservableObject {
             waterTarget: plan.waterIntakeOz
         )
         
+        let wasUnderGoal = existing.waterConsumed < existing.waterTarget
         existing.waterConsumed += ounces
         existing.waterTarget = plan.waterIntakeOz
+        
+        // If water goal is now met for the first time today, increment counter
+        if wasUnderGoal && existing.waterConsumed >= existing.waterTarget {
+            waterGoalDaysCount += 1
+        }
         
         dailyCompletions[key] = existing
     }
@@ -829,7 +854,7 @@ final class OnboardingData: ObservableObject {
         dailyCompletions[key] = existing
     }
 
-    func parseAndLogCoachInput(_ input: String, completion: @escaping (Bool, String, [String], Int?) -> Void) {
+    func parseAndLogCoachInput(_ input: String, completion: @escaping (Bool, String, [String], Int?, [Int]) -> Void) {
         Task {
             let result = await CoachNotesParser.parseWithAI(input)
             var foodsLogged: [String] = []
@@ -888,8 +913,12 @@ final class OnboardingData: ObservableObject {
             let message = success ? messageParts.joined(separator: " ") : "Could not parse any food or water from your input."
             let finalFoodsLogged = foodsLogged
             let finalWaterLogged = waterLogged
+            
+            // Check for newly unlocked achievements
+            let newAchievements = self.checkAchievements()
+            
             await MainActor.run {
-                completion(success, message, finalFoodsLogged, finalWaterLogged)
+                completion(success, message, finalFoodsLogged, finalWaterLogged, newAchievements)
             }
             return
         }
@@ -926,7 +955,18 @@ final class OnboardingData: ObservableObject {
                     dayCompletion.plannedCardio = newCardio
                     
                     if workout.isComplete {
+                        let wasIncomplete = !dayCompletion.cardioComplete
                         dayCompletion.cardioComplete = true
+                        
+                        // Track distance for Run, Bike, Swim, Walk
+                        if let distance = workout.distance {
+                            self.totalDistanceTraveled += distance
+                        }
+                        
+                        // Increment workout count if this is the first workout completed today
+                        if wasIncomplete && !dayCompletion.strengthComplete {
+                            self.totalWorkoutsCompleted += 1
+                        }
                     }
                     
                     let workoutDesc = workout.distance != nil 
@@ -951,7 +991,13 @@ final class OnboardingData: ObservableObject {
                     dayCompletion.plannedStrength = newStrength
                     
                     if workout.isComplete {
+                        let wasIncomplete = !dayCompletion.strengthComplete
                         dayCompletion.strengthComplete = true
+                        
+                        // Increment workout count if this is the first workout completed today
+                        if wasIncomplete && !dayCompletion.cardioComplete {
+                            self.totalWorkoutsCompleted += 1
+                        }
                     }
                     
                     let workoutDesc = workout.sets != nil && workout.reps != nil
@@ -964,6 +1010,12 @@ final class OnboardingData: ObservableObject {
         
         // Save updated dayCompletion
         self.dailyCompletions[key] = dayCompletion
+        
+        // Update app usage streak if any goal completed today
+        if Calendar.current.isDateInToday(result.date) && 
+           (!result.foods.isEmpty || !result.otherLiquids.isEmpty || result.water != nil || !result.workouts.isEmpty) {
+            self.updateAppStreak()
+        }
         
         // Generate confirmation message
         var messageParts: [String] = []
@@ -997,8 +1049,11 @@ final class OnboardingData: ObservableObject {
         let finalFoodsLogged = foodsLogged
         let finalWaterLogged = waterLogged
         
+        // Check for newly unlocked achievements
+        let newAchievements = self.checkAchievements()
+        
         await MainActor.run {
-            completion(success, message, finalFoodsLogged, finalWaterLogged)
+            completion(success, message, finalFoodsLogged, finalWaterLogged, newAchievements)
         }
         }
     }
@@ -1213,9 +1268,32 @@ final class OnboardingData: ObservableObject {
     // Weight tracking functions
     func recordWeight(_ weight: Int) {
         let today = Date()
+        let calendar = Calendar.current
+        
         currentWeight = weight
         weightHistory.append((date: today, weight: weight))
+        
+        // Check if this is a consecutive weigh-in
+        if let lastDate = lastWeighInDate,
+           let nextExpectedDate = calendar.date(byAdding: .day, value: weighInFrequency.days, to: lastDate) {
+            // If weighing in on or before the expected date, it's consecutive
+            if today <= nextExpectedDate || calendar.isDate(today, inSameDayAs: nextExpectedDate) {
+                consecutiveWeighIns += 1
+            } else {
+                // Missed the window, reset streak
+                consecutiveWeighIns = 1
+            }
+        } else {
+            // First weigh-in
+            consecutiveWeighIns = 1
+        }
+        
         lastWeighInDate = today
+        
+        // Check if goal weight reached
+        if let target = weightTarget, weight == target {
+            checkAchievements()
+        }
     }
     
     func nextWeighInDate() -> Date? {
@@ -1232,6 +1310,155 @@ final class OnboardingData: ObservableObject {
         let today = Date()
         let components = calendar.dateComponents([.day], from: today, to: nextDate)
         return max(0, components.day ?? 0)
+    }
+    
+    // Check and update macro streak (consecutive days hitting calorie + protein targets)
+    private func checkAndUpdateMacroStreak() {
+        let today = Date()
+        let key = dayKey(for: today)
+        guard let todayCompletion = dailyCompletions[key],
+              todayCompletion.caloriesConsumed >= todayCompletion.caloriesTarget &&
+              todayCompletion.proteinConsumed >= todayCompletion.proteinTarget else {
+            return // Today's macros not met yet
+        }
+        
+        // Check if yesterday also met macros
+        let calendar = Calendar.current
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else {
+            consecutiveMacroDays = 1
+            return
+        }
+        
+        let yesterdayKey = dayKey(for: yesterday)
+        if let yesterdayCompletion = dailyCompletions[yesterdayKey],
+           yesterdayCompletion.caloriesConsumed >= yesterdayCompletion.caloriesTarget &&
+           yesterdayCompletion.proteinConsumed >= yesterdayCompletion.proteinTarget {
+            // Continue streak
+            consecutiveMacroDays += 1
+        } else {
+            // Start new streak
+            consecutiveMacroDays = 1
+        }
+    }
+    
+    // Update app usage streak (called when user completes any goal)
+    func updateAppStreak() {
+        let today = Date()
+        let calendar = Calendar.current
+        
+        // If already logged activity today, don't update
+        if let lastDate = lastActivityDate, calendar.isDate(today, inSameDayAs: lastDate) {
+            return
+        }
+        
+        // Check if this continues a streak
+        if let lastDate = lastActivityDate {
+            if let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
+               calendar.isDate(lastDate, inSameDayAs: yesterday) {
+                // Streak continues
+                currentStreak += 1
+            } else {
+                // Streak broken, reset to 1
+                currentStreak = 1
+            }
+        } else {
+            // First day
+            currentStreak = 1
+        }
+        
+        lastActivityDate = today
+    }
+    
+    // Achievement checking function - returns newly unlocked achievement IDs
+    func checkAchievements() -> [Int] {
+        var newlyUnlocked: [Int] = []
+        
+        // Distance achievements (1-10)
+        let distanceMilestones: [(id: Int, miles: Double)] = [
+            (1, 1), (2, 10), (3, 25), (4, 50), (5, 100),
+            (6, 250), (7, 500), (8, 1000), (9, 2000), (10, 5000)
+        ]
+        for milestone in distanceMilestones {
+            if totalDistanceTraveled >= milestone.miles && !earnedAchievements.contains(milestone.id) {
+                earnedAchievements.insert(milestone.id)
+                newlyUnlocked.append(milestone.id)
+            }
+        }
+        
+        // Streak achievements (11-20)
+        let streakMilestones: [(id: Int, days: Int)] = [
+            (11, 7), (12, 14), (13, 30), (14, 60), (15, 90),
+            (16, 180), (17, 270), (18, 365), (19, 500), (20, 730)
+        ]
+        for milestone in streakMilestones {
+            if currentStreak >= milestone.days && !earnedAchievements.contains(milestone.id) {
+                earnedAchievements.insert(milestone.id)
+                newlyUnlocked.append(milestone.id)
+            }
+        }
+        
+        // Weight achievements (21-30)
+        // 21 = Goal Weight (special check)
+        if let current = currentWeight, let target = weightTarget, current == target && !earnedAchievements.contains(21) {
+            earnedAchievements.insert(21)
+            newlyUnlocked.append(21)
+        }
+        
+        // 22 = First weigh-in
+        if !weightHistory.isEmpty && !earnedAchievements.contains(22) {
+            earnedAchievements.insert(22)
+            newlyUnlocked.append(22)
+        }
+        
+        // Consecutive weigh-ins (23-30)
+        let weighInMilestones: [(id: Int, count: Int)] = [
+            (23, 5), (24, 10), (25, 15), (26, 25), (27, 52),
+            (28, 100), (29, 150), (30, 200)
+        ]
+        for milestone in weighInMilestones {
+            if consecutiveWeighIns >= milestone.count && !earnedAchievements.contains(milestone.id) {
+                earnedAchievements.insert(milestone.id)
+                newlyUnlocked.append(milestone.id)
+            }
+        }
+        
+        // Macro achievements (31-40)
+        let macroMilestones: [(id: Int, days: Int)] = [
+            (31, 7), (32, 14), (33, 21), (34, 30), (35, 45),
+            (36, 60), (37, 90), (38, 120), (39, 150), (40, 180)
+        ]
+        for milestone in macroMilestones {
+            if consecutiveMacroDays >= milestone.days && !earnedAchievements.contains(milestone.id) {
+                earnedAchievements.insert(milestone.id)
+                newlyUnlocked.append(milestone.id)
+            }
+        }
+        
+        // Workout achievements (41-50)
+        let workoutMilestones: [(id: Int, count: Int)] = [
+            (41, 1), (42, 5), (43, 10), (44, 30), (45, 50),
+            (46, 75), (47, 100), (48, 125), (49, 150), (50, 175)
+        ]
+        for milestone in workoutMilestones {
+            if totalWorkoutsCompleted >= milestone.count && !earnedAchievements.contains(milestone.id) {
+                earnedAchievements.insert(milestone.id)
+                newlyUnlocked.append(milestone.id)
+            }
+        }
+        
+        // Water achievements (51-60)
+        let waterMilestones: [(id: Int, days: Int)] = [
+            (51, 7), (52, 14), (53, 30), (54, 45), (55, 60),
+            (56, 90), (57, 120), (58, 150), (59, 180), (60, 210)
+        ]
+        for milestone in waterMilestones {
+            if waterGoalDaysCount >= milestone.days && !earnedAchievements.contains(milestone.id) {
+                earnedAchievements.insert(milestone.id)
+                newlyUnlocked.append(milestone.id)
+            }
+        }
+        
+        return newlyUnlocked
     }
 
     private func clamp(_ value: Int, lower: Int, upper: Int) -> Int {
