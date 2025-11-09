@@ -146,10 +146,10 @@ class OpenAIService {
         }
         
         // Parse the JSON response from OpenAI
-        return try parseOpenAIResponse(content)
+        return try await parseOpenAIResponse(content)
     }
     
-    private func parseOpenAIResponse(_ jsonString: String) throws -> ParsedResult {
+    private func parseOpenAIResponse(_ jsonString: String) async throws -> ParsedResult {
         guard let jsonData = jsonString.data(using: .utf8),
               let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
             throw OpenAIError.parsingError("Invalid JSON from AI")
@@ -164,16 +164,31 @@ class OpenAIService {
         if let foodsArray = json["foods"] as? [[String: Any]] {
             for foodDict in foodsArray {
                 if let name = foodDict["name"] as? String,
-                   let quantity = foodDict["quantity"] as? Double,
-                   let food = FoodDatabase.findFood(name) {
-                    let macros = MacroBreakdown(
-                        calories: Int(Double(food.calories) * quantity),
-                        protein: Int(Double(food.protein) * quantity),
-                        carbs: Int(Double(food.carbs) * quantity),
-                        sugar: Int(Double(food.sugar) * quantity),
-                        fat: Int(Double(food.fat) * quantity)
-                    )
-                    parsedFoods.append(ParsedFood(name: food.name, quantity: quantity, macros: macros))
+                   let quantity = foodDict["quantity"] as? Double {
+                    
+                    // Try database first
+                    if let food = FoodDatabase.findFood(name) {
+                        let macros = MacroBreakdown(
+                            calories: Int(Double(food.calories) * quantity),
+                            protein: Int(Double(food.protein) * quantity),
+                            carbs: Int(Double(food.carbs) * quantity),
+                            sugar: Int(Double(food.sugar) * quantity),
+                            fat: Int(Double(food.fat) * quantity)
+                        )
+                        parsedFoods.append(ParsedFood(name: food.name, quantity: quantity, macros: macros))
+                    } else {
+                        // Fallback: Ask AI to estimate macros
+                        print("Food '\(name)' not found in database, estimating macros...")
+                        if let estimatedMacros = try? await estimateMacros(foodName: name, quantity: quantity) {
+                            parsedFoods.append(ParsedFood(
+                                name: "\(name) (est.)",
+                                quantity: quantity,
+                                macros: estimatedMacros
+                            ))
+                        } else {
+                            print("Failed to estimate macros for '\(name)'")
+                        }
+                    }
                 }
             }
         }
@@ -224,6 +239,84 @@ class OpenAIService {
             water: parsedWater,
             workouts: parsedWorkouts,
             rawText: jsonString
+        )
+    }
+    
+    /// Estimate macros for a food not in the database using OpenAI
+    private func estimateMacros(foodName: String, quantity: Double) async throws -> MacroBreakdown {
+        let prompt = """
+        Estimate the nutritional macros for: \(quantity) serving(s) of \(foodName)
+        
+        Respond ONLY with valid JSON in this exact format:
+        {
+          "calories": 285,
+          "protein": 12,
+          "carbs": 36,
+          "sugar": 4,
+          "fat": 10
+        }
+        
+        Base estimates on typical serving sizes for common foods. Be accurate and reasonable.
+        """
+        
+        let requestBody: [String: Any] = [
+            "model": "gpt-4o-mini",
+            "messages": [
+                ["role": "system", "content": "You are a nutrition expert. Provide accurate macro estimates based on typical serving sizes."],
+                ["role": "user", "content": prompt]
+            ],
+            "temperature": 0.3,
+            "max_tokens": 150
+        ]
+        
+        guard let url = URL(string: endpoint) else {
+            throw OpenAIError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OpenAIError.invalidResponse
+        }
+        
+        guard httpResponse.statusCode == 200 else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("OpenAI API Error in estimateMacros (\(httpResponse.statusCode)): \(errorMessage)")
+            throw OpenAIError.apiError(statusCode: httpResponse.statusCode, message: errorMessage)
+        }
+        
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        
+        guard let choices = json?["choices"] as? [[String: Any]],
+              let firstChoice = choices.first,
+              let message = firstChoice["message"] as? [String: Any],
+              let content = message["content"] as? String else {
+            throw OpenAIError.invalidResponse
+        }
+        
+        // Parse the macro JSON from the AI response
+        guard let macroData = content.data(using: .utf8),
+              let macroJson = try? JSONSerialization.jsonObject(with: macroData) as? [String: Any],
+              let calories = macroJson["calories"] as? Int,
+              let protein = macroJson["protein"] as? Int,
+              let carbs = macroJson["carbs"] as? Int,
+              let sugar = macroJson["sugar"] as? Int,
+              let fat = macroJson["fat"] as? Int else {
+            throw OpenAIError.parsingError("Could not parse macro estimation from AI")
+        }
+        
+        return MacroBreakdown(
+            calories: calories,
+            protein: protein,
+            carbs: carbs,
+            sugar: sugar,
+            fat: fat
         )
     }
     
